@@ -97,8 +97,10 @@ SmallShell::~SmallShell()
   // TODO: add your implementation
 }
 
-void SmallShell::chprompt(string new_prompt)
+void SmallShell::changeChprompt(const char *cmd_line)
 {
+  vector<string> args = func(); // להוסיף את הפונקציה שמחזירה וקטור מהcmd_line
+  string new_prompt = args[1] != "" ? (args[1] + "> ") : "smash> ";
   prompt = new_prompt;
 }
 
@@ -137,15 +139,30 @@ Command *SmallShell::CreateCommand(const char *cmd_line)
   return nullptr;
 }
 
+bool isFirstWordBuildInCommand(string firstWord)
+{
+  if (firstWord.compare("pwd") == 0 ||
+      firstWord.compare("showpid") == 0 ||
+      firstWord.compare("cd") == 0 ||
+      firstWord.compare("jobs") == 0)
+  {
+    return true;
+  }
+  return false;
+}
+
 void SmallShell::executeCommand(const char *cmd_line)
 {
   string cmd_s = _trim(string(cmd_line));
   string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
   if (firstWord.compare("chprompt") == 0)
   {
-    vector<string> cmd; // להוסיף את הפונקציה שמחזירה וקטור מהcmd_line
-    string new_prompt = cmd[1] != "" ? (cmd[1] + "> ") : "smash> ";
-    chprompt(new_prompt);
+    changeChprompt(cmd_line);
+  }
+  else if (isFirstWordBuildInCommand(firstWord))
+  {
+    Command *cmd = CreateCommand(cmd_line);
+    cmd->execute();
   }
   // TODO: Add your implementation here
   // for example:
@@ -169,13 +186,13 @@ void GetCurrDirCommand::execute()
   }
   else
   {
-    // something went wrong, should i throw an error?
+    // if something went wrong, should i throw an error?
   }
 }
 
 void ChangeDirCommand::execute()
 {
-  char *new_dir = args[1] == "-" ? *last_wd : args[1];
+  char *new_dir = args[1] == "-" ? *p_last_wd : args[1];
   char buffer[256];
   getcwd(buffer, sizeof(buffer)); // לשמור את התיקיה הנוכחית כתיקיה החוקית האחרונה
   int res = chdir(new_dir);
@@ -187,6 +204,19 @@ void ChangeDirCommand::execute()
   // change succeeded
   else
   {
-    strcpy(*last_wd, buffer);
+    strcpy(*p_last_wd, buffer);
   }
+}
+
+void Job::printInfo() const
+{
+  int current_time = time(NULL);
+  int time_diff = difftime(current_time, init_time);
+  string stopped_str = is_stopped ? "(stopped)" : "";
+  std::cout << "[" << job_id << "]" << command->getCmdL() << " : " << process_id << " " << time_diff << " secs " << stopped_str << std::endl;
+}
+
+void Job::setTime()
+{
+  init_time = time(NULL);
 }

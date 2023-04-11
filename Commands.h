@@ -2,6 +2,7 @@
 #define SMASH_COMMAND_H_
 
 #include <vector>
+#include <ctime>
 
 #define COMMAND_ARGS_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
@@ -112,12 +113,22 @@ public:
   void execute() override;
 };
 
-class Jobs
+class Job
 {
 private:
+  Command *command;
+  int process_id;
+  int job_id;
   int init_time;
-  bool stopped;
+  bool is_stopped;
+
+public:
+  Job(Command *command, int process_id, int job_id, bool is_stopped) : command(command), process_id(process_id), job_id(job_id), init_time(time(NULL)), is_stopped(is_stopped){};
+  ~Job() = default;
+  void printInfo() const;
+  void setTime();
 };
+
 class JobsList
 {
 public:
@@ -220,9 +231,9 @@ class SmallShell
 private:
   // TODO: Add your data members
   std::string prompt;
-  char last_wd[256] = "";
+  char *last_wd
 
-  SmallShell();
+  SmallShell() : prompt("smash"), last_wd(new char[256]){};
 
 public:
   Command *CreateCommand(const char *cmd_line);
@@ -234,11 +245,11 @@ public:
     // Instantiated on first use.
     return instance;
   }
-  ~SmallShell();
+  ~SmallShell(){delete last_wd};
   void executeCommand(const char *cmd_line);
   // TODO: add extra methods as needed
   void printPrompt() const;
-  void chprompt(string new_prompt);
+  void changeChprompt(const char *cmd_line);
 };
 
 #endif // SMASH_COMMAND_H_
