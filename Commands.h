@@ -8,8 +8,10 @@
 
 class Command {
 // TODO: Add your data members
+protected:
+const char * cmd_l;
  public:
-  Command(const char* cmd_line);
+  Command(const char* cmd_line) :cmd_l(cmd_line) {};
   virtual ~Command();
   virtual void execute() = 0;
   //virtual void prepare();
@@ -19,7 +21,7 @@ class Command {
 
 class BuiltInCommand : public Command {
  public:
-  BuiltInCommand(const char* cmd_line);
+  BuiltInCommand(const char* cmd_line): Command::Command(cmd_line){};
   virtual ~BuiltInCommand() {}
 };
 
@@ -50,7 +52,9 @@ class RedirectionCommand : public Command {
 
 class ChangeDirCommand : public BuiltInCommand {
 // TODO: Add your data members public:
-  ChangeDirCommand(const char* cmd_line, char** plastPwd);
+//vec<string> arg;
+
+  ChangeDirCommand(const char* cmd_line, char** plastPwd){} ;
   virtual ~ChangeDirCommand() {}
   void execute() override;
 };
@@ -78,10 +82,16 @@ public:
   void execute() override;
 };
 
-
+class Jobs
+{
+private:
+    int init_time;
+    bool stopped;
+};
 class JobsList {
  public:
   class JobEntry {
+      queue<Job> jobs;
    // TODO: Add your data members
   };
  // TODO: Add your data members
@@ -167,6 +177,9 @@ class KillCommand : public BuiltInCommand {
 class SmallShell {
  private:
   // TODO: Add your data members
+  std::string prompt;
+  string last_wd;
+
   SmallShell();
  public:
   Command *CreateCommand(const char* cmd_line);
@@ -181,6 +194,8 @@ class SmallShell {
   ~SmallShell();
   void executeCommand(const char* cmd_line);
   // TODO: add extra methods as needed
+  void printPrompt() const;
+  void chprompt();
 };
 
 #endif //SMASH_COMMAND_H_

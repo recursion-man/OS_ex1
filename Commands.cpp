@@ -77,15 +77,29 @@ void _removeBackgroundSign(char* cmd_line) {
   cmd_line[str.find_last_not_of(WHITESPACE, idx) + 1] = 0;
 }
 
+
+
 // TODO: Add your implementation for classes in Commands.h 
 
-SmallShell::SmallShell() {
+void ShowPidCommand::execute() {}
+
+
+SmallShell::SmallShell() :prompt("smash> ") {
 // TODO: add your implementation
 }
 
 SmallShell::~SmallShell() {
 // TODO: add your implementation
 }
+
+void SmallShell::chprompt(string new_prompt) {
+    prompt= new_prompt;
+}
+
+SmallShell::printPrompt(){
+    std::cout << prompt;
+}
+
 
 /**
 * Creates and returns a pointer to Command class which matches the given command line (cmd_line)
@@ -116,5 +130,6 @@ void SmallShell::executeCommand(const char *cmd_line) {
   // for example:
   // Command* cmd = CreateCommand(cmd_line);
   // cmd->execute();
+  // {cout<< "pid is:" << pid}
   // Please note that you must fork smash process for some commands (e.g., external commands....)
 }
