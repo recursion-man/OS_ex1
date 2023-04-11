@@ -22,10 +22,14 @@ public:
   virtual void execute() = 0;
   // virtual void prepare();
   // virtual void cleanup();
+
+  // getters
   const char *getCmdL() const;
   bool getStatus() const;
   int getJobId() const;
   int getProcessId() const;
+
+  // setters
   void setJobId(int id);
   void setProcessId(int id);
 
@@ -44,36 +48,7 @@ class ExternalCommand : public Command
 public:
   ExternalCommand(const char *cmd_line) : Command::Command(cmd_line);
   virtual ~ExternalCommand() {}
-  void execute() override
-  {
-    SmallShell &smash = SmallShell::getInstance();
-
-    this->process_id = getpit();
-    if (_isBackgroundCommand(cmd_line))
-    {
-      smash.addJob(this);
-    }
-
-    if (_isSimpleExternal(cmd))
-    {
-      char **args;
-      _parseCommandLine(cmd, args);
-      if (exec(args[0], args) == -1)
-      {
-        smash.removeJob(this->job_id);
-        // ולזרוק שגיאה שפעולת מערכת לא הצליחה
-      }
-    }
-    else
-    {
-      char *args = {"-c", cmd_line};
-      if (exec("/bin/bash", args) == -1)
-      {
-        smash.removeJob(this->job_id);
-        // ולזרוק שגיאה שפעולת מערכת לא הצליחה
-      }
-    }
-  }
+  void execute() override;
 };
 
 class PipeCommand : public Command
@@ -101,23 +76,7 @@ class ChangeDirCommand : public BuiltInCommand
   // TODO: Add your data members public:
   vector<string> args = func(); // להוסיף את הפונקציה שמפרידה את המילים בשורת קוד
   char **last_wd;
-  ChangeDirCommand(const char *cmd_line, char **plastPwd) : BuiltInCommand::BuiltInCommand(cmd_line), args(func()),
-                                                            last_wd(plastPwd)
-  {
-    if (args.size() != 2)
-    {
-      // לזרוק שגיאה על כמות לא נכונה של ארגומנטים או שלא נוספו ארגומנטים
-      // throw error that "smash error: cd: too many arguments"
-    }
-    else if (*plastPwd == "")
-    {
-      // לזרוק חריגה שתיקיה אחרונה חוקית לא קיימת עדיין
-      // throw error that "smash error: cd: OLDPWD not set"
-    }
-    else
-    {
-    }
-  };
+  ChangeDirCommand(const char *cmd_line, char **plastPwd);
   virtual ~ChangeDirCommand() {}
   void execute() override;
 };
@@ -161,28 +120,39 @@ public:
   public:
     JobEntry(Command *command, bool is_stopped) : command(command), init_time(time(NULL)), is_stopped(is_stopped){};
     ~JobEntry() = default;
-    void printInfo() const;
-    void setTime();
+
+    //  getters
     bool getStopped() const;
-    void setStopped(bool is_stopped);
     Command *getCommand() const;
+
+    //  setters
+    void setTime();
+    void setStopped(bool is_stopped);
+
+    //  aux
+    void printInfo() const;
 
     // TODO: Add your data members
   };
   // TODO: Add your data members
-  std::queue<JobEntry> jobs;
+  std::queue<JobEntry> jobs; // אולי נהפוך לרשימה מקושרת std::list?
 
 public:
   JobsList();
   ~JobsList();
+
+  //  getters
+  JobEntry *getJobById(int jobId);
+  JobEntry *getLastJob(int *lastJobId);
+  JobEntry *getLastStoppedJob(int *jobId);
+
+  //  aux
   void addJob(Command *cmd, bool isStopped = false);
+  void removeJobById(int jobId);
   void printJobsList();
   void killAllJobs();
   void removeFinishedJobs();
-  JobEntry *getJobById(int jobId);
-  void removeJobById(int jobId);
-  JobEntry *getLastJob(int *lastJobId);
-  JobEntry *getLastStoppedJob(int *jobId);
+
   // TODO: Add extra methods or modify exisitng ones as needed
 };
 
@@ -191,7 +161,6 @@ class JobsCommand : public BuiltInCommand
   // TODO: Add your data members
 public:
   JobsCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand::BuiltInCommand(cmd_line);
-
   virtual ~JobsCommand() {}
   void execute() override;
 };
@@ -269,10 +238,7 @@ private:
   Command *current_process_id;
   JobsList *jobs_list;
 
-  SmallShell() : prompt("smash"), last_wd(new char[256]), current_process_id(nullptr), jobs_list()
-  {
-    last_wd = nullptr;
-  };
+  SmallShell();
 
 public:
   Command *CreateCommand(const char *cmd_line);
@@ -284,23 +250,15 @@ public:
     // Instantiated on first use.
     return instance;
   }
-  ~SmallShell()
-  {
-    delete last_wd;
-  };
+  ~SmallShell();
+
+  //  aux
   void executeCommand(const char *cmd_line);
   // TODO: add extra methods as needed
   void printPrompt() const;
   void changeChprompt(const char *cmd_line);
-
-  void addJob(Command *cmd, bool is_stopped = false)
-  {
-    jobs_list->addJob(cmd, is_stopped);
-  };
-  void removeJob(int job_id)
-  {
-    jobs_list->removeJobById(job_id);
-  };
+  void addJob(Command *cmd, bool is_stopped = false);
+  void removeJob(int job_id);
 };
 
 #endif // SMASH_COMMAND_H_
