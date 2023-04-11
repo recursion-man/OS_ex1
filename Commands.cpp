@@ -56,10 +56,14 @@ int _parseCommandLine(const char *cmd_line, char **args)
   FUNC_EXIT()
 }
 
-bool _isBackgroundComamnd(const char *cmd_line)
+bool _isBackgroundCommand(const char *cmd_line)
 {
   const string str(cmd_line);
   return str[str.find_last_not_of(WHITESPACE)] == '&';
+}
+bool _isSimpleExternal(const char *cmd_line)
+{
+  // לבצע פונקציה שבודקת האם יש כוכבית או סימן שאלה בשורת קוד
 }
 
 void _removeBackgroundSign(char *cmd_line)
@@ -131,7 +135,8 @@ Command *SmallShell::CreateCommand(const char *cmd_line)
   {
     return new ChangeDirCommand(cmd_line, &this->last_wd);
   }
-  ... else
+  // להסויף עוד
+  else
   {
     return new ExternalCommand(cmd_line);
   }
@@ -166,15 +171,15 @@ void SmallShell::executeCommand(const char *cmd_line)
   }
   else
   {
+    Command *cmd = CreateCommand(cmd_line);
     int pid = fork();
     if (pid == 0)
     {
-      Command *cmd = CreateCommand(cmd_line);
       cmd->execute();
     }
     else
     {
-      current_process_id = pid;
+      current_process_id = cmd;
       // חרא של האבא
     }
   }
@@ -258,14 +263,51 @@ void Jobs::JobEntry::printInfo() const
   int time_diff = difftime(current_time, init_time);
   string stopped_str = is_stopped ? "(stopped)" : "";
   std::cout << "[" << job_id << "]" << command->getCmdL() << " : " << process_id << " " << time_diff << " secs " << stopped_str << std::endl;
-}
+};
 
 void JobEntry::setTime()
 {
   init_time = time(NULL);
-}
+};
 
 bool JobEntry::isJobFinished() const
 {
   return command->getStatus();
+};
+bool JobEntry::getStopped() const
+{
+  return is_stopped;
+};
+void JobEntry::setStopped(bool is_stopped)
+{
+  is_stopped = is_stopped;
+};
+Command *JobEntry::getCommand() const
+{
+  return command;
+};
+
+const char *Command::getCmdL() const
+{
+  return cmd_l;
+}
+bool Command::getStatus() const
+{
+  return is_finished;
+}
+int Command::getJobId() const
+{
+  return is_finished;
+}
+int Command::getProcessId() const
+{
+  return is_finished;
+}
+void Command::setJobId(int id)
+{
+  job_id = id;
+}
+void Command::setProcessId(int id)
+{
+  process_id = id;
 }

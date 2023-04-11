@@ -12,23 +12,23 @@ class Command
   // TODO: Add your data members
 protected:
   int job_id;
+  int process_id;
   const char *cmd_l;
   bool is_finished = true;
 
 public:
-  Command(const char *cmd_line) : job_id(-1), cmd_l(cmd_line), is_finished(false){};
+  Command(const char *cmd_line) : job_id(-1), process_id(getpid()), cmd_l(cmd_line), is_finished(false){};
   virtual ~Command();
   virtual void execute() = 0;
   // virtual void prepare();
   // virtual void cleanup();
-  const char *getCmdL() const
-  {
-    return cmd_l;
-  }
-  bool getStatus() const
-  {
-    return is_finished;
-  }
+  const char *getCmdL() const;
+  bool getStatus() const;
+  int getJobId() const;
+  int getProcessId() const;
+  void setJobId(int id);
+  void setProcessId(int id);
+
   // TODO: Add your extra methods if needed
 };
 
@@ -48,18 +48,19 @@ public:
   {
     SmallShell &smash = SmallShell::getInstance();
 
-    JobEntry job = smash.addJob(this);
-    // לעשות בדיקה אם יש * או ? בcmd
+    this->process_id = getpit();
+    if (_isBackgroundCommand(cmd_line))
+    {
+      smash.addJob(this);
+    }
 
-    if (isSimpleExternal(cmd))
+    if (_isSimpleExternal(cmd))
     {
       char **args;
       _parseCommandLine(cmd, args);
       if (exec(args[0], args) == -1)
       {
-        smash.removeJob(job->getJobId());
-        // אז למחוק את המשימה מהרשימה
-        // smash.removeJob();
+        smash.removeJob(this->job_id);
         // ולזרוק שגיאה שפעולת מערכת לא הצליחה
       }
     }
@@ -68,9 +69,7 @@ public:
       char *args = {"-c", cmd_line};
       if (exec("/bin/bash", args) == -1)
       {
-        smash.removeJob(job->getJobId());
-        // אז למחוק את המשימה מהרשימה
-        // smash.removeJob();
+        smash.removeJob(this->job_id);
         // ולזרוק שגיאה שפעולת מערכת לא הצליחה
       }
     }
@@ -156,29 +155,27 @@ public:
   {
   private:
     Command *command;
-    int process_id;
-    int job_id;
     int init_time;
     bool is_stopped;
 
   public:
-    JobEntry(Command *command, int process_id, int job_id, bool is_stopped) : command(command), process_id(process_id), job_id(job_id), init_time(time(NULL)), is_stopped(is_stopped){};
+    JobEntry(Command *command, bool is_stopped) : command(command), init_time(time(NULL)), is_stopped(is_stopped){};
     ~JobEntry() = default;
     void printInfo() const;
     void setTime();
-    void getJobStatus() const;
+    bool getStopped() const;
+    void setStopped(bool is_stopped);
+    Command *getCommand() const;
+
     // TODO: Add your data members
   };
   // TODO: Add your data members
   std::queue<JobEntry> jobs;
-  JobEntry current_job;
 
 public:
   JobsList();
   ~JobsList();
-  void addJob(Command *cmd, bool isStopped = false)
-  {
-  }
+  void addJob(Command *cmd, bool isStopped = false);
   void printJobsList();
   void killAllJobs();
   void removeFinishedJobs();
@@ -269,10 +266,10 @@ private:
   // TODO: Add your data members
   std::string prompt;
   char *last_wd;
-  int current_process_id;
+  Command *current_process_id;
   JobsList *jobs_list;
 
-  SmallShell() : prompt("smash"), last_wd(new char[256]), current_process_id(-1), jobs_list()
+  SmallShell() : prompt("smash"), last_wd(new char[256]), current_process_id(nullptr), jobs_list()
   {
     last_wd = nullptr;
   };
@@ -298,7 +295,7 @@ public:
 
   void addJob(Command *cmd, bool is_stopped = false)
   {
-    jobs_list = > addJob(cmd, is_stopped);
+    jobs_list->addJob(cmd, is_stopped);
   };
   void removeJob(int job_id)
   {
