@@ -140,10 +140,12 @@ class JobsList
 public:
   class JobEntry
   {
-    queue<Job> jobs;
+
     // TODO: Add your data members
   };
   // TODO: Add your data members
+  std::queue<Job> jobs;
+
 public:
   JobsList();
   ~JobsList();
@@ -237,9 +239,12 @@ class SmallShell
 private:
   // TODO: Add your data members
   std::string prompt;
-  char *last_wd
+  char *last_wd;
 
-  SmallShell() : prompt("smash"), last_wd(new char[256]){};
+  SmallShell() : prompt("smash"), last_wd(new char[256])
+  {
+    last_wd = nullptr;
+  };
 
 public:
   Command *CreateCommand(const char *cmd_line);

@@ -100,7 +100,7 @@ SmallShell::~SmallShell()
 void SmallShell::changeChprompt(const char *cmd_line)
 {
   vector<string> args = func(); // להוסיף את הפונקציה שמחזירה וקטור מהcmd_line
-  string new_prompt = args[1] != "" ? (args[1] + "> ") : "smash> ";
+  string new_prompt = args.size() == 1 ? "smash> " : (args[1] + "> ");
   prompt = new_prompt;
 }
 
@@ -175,7 +175,7 @@ void ShowPidCommand::execute()
 {
   int process_id = getpid();
   std::cout << "smash pid is " << process_id << std::endl;
-  isFinished = true;
+  is_finished = true;
 }
 
 void GetCurrDirCommand::execute()
@@ -187,28 +187,55 @@ void GetCurrDirCommand::execute()
   }
   else
   {
-    // if something went wrong, should i throw an error?
+    // perror("smash error: getcwd failed");
+    // לזרוק חריגה שקראת מערכת נכשלה
   }
-  isFinished = true;
+  is_finished = true;
 }
 
 void ChangeDirCommand::execute()
 {
-  char *new_dir = args[1] == "-" ? *p_last_wd : args[1];
+  char *new_dir;
+  if (args.size() != 2)
+  {
+    // לזרוק שגיאה שאין ארגונטים
+  }
+  if (args[1] == "-")
+  {
+    if (p_last_wd == nullptr)
+    {
+      // לזרוק שגיאה שתיקיה אחרונה חוקית עוד לא הייתה
+    }
+    else
+    {
+      new_dir = *p_last_wd;
+    }
+  }
+  else
+  {
+    new_dir = args[1];
+  }
+
   char buffer[256];
-  getcwd(buffer, sizeof(buffer)); // לשמור את התיקיה הנוכחית כתיקיה החוקית האחרונה
+  if (getcwd(buffer, sizeof(buffer)) == NULL)
+  {
+    // perror("smash error: getcwd failed");
+    // לזרוק חריגה שקריאת מערכת נכשלה
+  }
+
   int res = chdir(new_dir);
   // change failed
   if (res == -1)
   {
-    perror("smash error: chdir failed");
+    // perror("smash error: chdir failed");
+    // לזרוק חריגה שקריאת מערכת נכשלה
   }
   // change succeeded
   else
   {
     strcpy(*p_last_wd, buffer);
   }
-  isFinished = true;
+  is_finished = true;
 }
 
 void Job::printInfo() const
