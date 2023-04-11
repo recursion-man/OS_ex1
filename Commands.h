@@ -12,9 +12,10 @@ class Command
   // TODO: Add your data members
 protected:
   const char *cmd_l;
+  bool is_finished = true;
 
 public:
-  Command(const char *cmd_line) : cmd_l(cmd_line){};
+  Command(const char *cmd_line) : cmd_l(cmd_line), is_finished(false){};
   virtual ~Command();
   virtual void execute() = 0;
   // virtual void prepare();
@@ -22,6 +23,10 @@ public:
   const char *getCmdL() const
   {
     return cmd_l;
+  }
+  bool getStatus() const
+  {
+    return is_finished;
   }
   // TODO: Add your extra methods if needed
 };
@@ -127,6 +132,7 @@ public:
   ~Job() = default;
   void printInfo() const;
   void setTime();
+  void getJobStatus() const;
 };
 
 class JobsList
@@ -245,7 +251,10 @@ public:
     // Instantiated on first use.
     return instance;
   }
-  ~SmallShell(){delete last_wd};
+  ~SmallShell()
+  {
+    delete last_wd;
+  };
   void executeCommand(const char *cmd_line);
   // TODO: add extra methods as needed
   void printPrompt() const;

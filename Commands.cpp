@@ -175,6 +175,7 @@ void ShowPidCommand::execute()
 {
   int process_id = getpid();
   std::cout << "smash pid is " << process_id << std::endl;
+  isFinished = true;
 }
 
 void GetCurrDirCommand::execute()
@@ -188,6 +189,7 @@ void GetCurrDirCommand::execute()
   {
     // if something went wrong, should i throw an error?
   }
+  isFinished = true;
 }
 
 void ChangeDirCommand::execute()
@@ -206,6 +208,7 @@ void ChangeDirCommand::execute()
   {
     strcpy(*p_last_wd, buffer);
   }
+  isFinished = true;
 }
 
 void Job::printInfo() const
@@ -219,4 +222,9 @@ void Job::printInfo() const
 void Job::setTime()
 {
   init_time = time(NULL);
+}
+
+bool Job::isJobFinished() const
+{
+  return command->getStatus();
 }
