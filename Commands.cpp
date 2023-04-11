@@ -139,7 +139,7 @@ Command *SmallShell::CreateCommand(const char *cmd_line)
   return nullptr;
 }
 
-bool isFirstWordBuildInCommand(string firstWord)
+bool isBuildInCommand(string firstWord)
 {
   if (firstWord.compare("pwd") == 0 ||
       firstWord.compare("showpid") == 0 ||
@@ -159,10 +159,24 @@ void SmallShell::executeCommand(const char *cmd_line)
   {
     changeChprompt(cmd_line);
   }
-  else if (isFirstWordBuildInCommand(firstWord))
+  else if (isBuildInCommand(firstWord))
   {
     Command *cmd = CreateCommand(cmd_line);
     cmd->execute();
+  }
+  else
+  {
+    int pid = fork();
+    if (pid == 0)
+    {
+      Command *cmd = CreateCommand(cmd_line);
+      cmd->execute();
+    }
+    else
+    {
+      current_process_id = pid;
+      // חרא של האבא
+    }
   }
   // TODO: Add your implementation here
   // for example:
@@ -238,7 +252,7 @@ void ChangeDirCommand::execute()
   is_finished = true;
 }
 
-void Job::printInfo() const
+void Jobs::JobEntry::printInfo() const
 {
   int current_time = time(NULL);
   int time_diff = difftime(current_time, init_time);
@@ -246,12 +260,12 @@ void Job::printInfo() const
   std::cout << "[" << job_id << "]" << command->getCmdL() << " : " << process_id << " " << time_diff << " secs " << stopped_str << std::endl;
 }
 
-void Job::setTime()
+void JobEntry::setTime()
 {
   init_time = time(NULL);
 }
 
-bool Job::isJobFinished() const
+bool JobEntry::isJobFinished() const
 {
   return command->getStatus();
 }
