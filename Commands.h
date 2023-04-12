@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <ctime>
+#include <string>
 
 #define COMMAND_ARGS_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
@@ -15,9 +16,10 @@ protected:
   int process_id;
   const char *cmd_l;
   bool is_finished = true;
+  std::vector<std::string> args_vec;
 
 public:
-  Command(const char *cmd_line) : job_id(-1), process_id(getpid()), cmd_l(cmd_line), is_finished(false){};
+  Command(const char *cmd_line);// : job_id(-1), process_id(getpid()), cmd_l(cmd_line), is_finished(false){};
   virtual ~Command();
   virtual void execute() = 0;
   // virtual void prepare();
@@ -74,7 +76,7 @@ public:
 class ChangeDirCommand : public BuiltInCommand
 {
   // TODO: Add your data members public:
-  vector<string> args = func(); // להוסיף את הפונקציה שמפרידה את המילים בשורת קוד
+  std::vector<std::string> args = func(); // להוסיף את הפונקציה שמפרידה את המילים בשורת קוד
   char **last_wd;
   ChangeDirCommand(const char *cmd_line, char **plastPwd);
   virtual ~ChangeDirCommand() {}
