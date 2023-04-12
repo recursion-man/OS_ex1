@@ -48,7 +48,7 @@ public:
 class ExternalCommand : public Command
 {
 public:
-  ExternalCommand(const char *cmd_line) : Command::Command(cmd_line);
+  ExternalCommand(const char *cmd_line) : Command::Command(cmd_line){};
   virtual ~ExternalCommand() {}
   void execute() override;
 };
@@ -57,7 +57,7 @@ class PipeCommand : public Command
 {
   // TODO: Add your data members
 public:
-  PipeCommand(const char *cmd_line) : Command::Command(cmd_line);
+  PipeCommand(const char *cmd_line) : Command::Command(cmd_line){};
   virtual ~PipeCommand() {}
   void execute() override;
 };
@@ -66,7 +66,7 @@ class RedirectionCommand : public Command
 {
   // TODO: Add your data members
 public:
-  explicit RedirectionCommand(const char *cmd_line) : Command::Command(cmd_line);
+  explicit RedirectionCommand(const char *cmd_line) : Command::Command(cmd_line){};
   virtual ~RedirectionCommand() {}
   void execute() override;
   // void prepare() override;
@@ -75,10 +75,11 @@ public:
 
 class ChangeDirCommand : public BuiltInCommand
 {
+private:
+    char** plastPwd;
+public:
   // TODO: Add your data members public:
-  std::vector<std::string> args = func(); // להוסיף את הפונקציה שמפרידה את המילים בשורת קוד
-  char **last_wd;
-  ChangeDirCommand(const char *cmd_line, char **plastPwd);
+  ChangeDirCommand(const char *cmd_line);
   virtual ~ChangeDirCommand() {}
   void execute() override;
 };
@@ -86,7 +87,7 @@ class ChangeDirCommand : public BuiltInCommand
 class GetCurrDirCommand : public BuiltInCommand
 {
 public:
-  GetCurrDirCommand(const char *cmd_line) : BuiltInCommand::BuiltInCommand(cmd_line);
+  GetCurrDirCommand(const char *cmd_line) : BuiltInCommand::BuiltInCommand(cmd_line){};
   virtual ~GetCurrDirCommand() {}
   void execute() override;
 };
@@ -94,7 +95,7 @@ public:
 class ShowPidCommand : public BuiltInCommand
 {
 public:
-  ShowPidCommand(const char *cmd_line) : BuiltInCommand::BuiltInCommand(cmd_line);
+  ShowPidCommand(const char *cmd_line) : BuiltInCommand::BuiltInCommand(cmd_line){};
   virtual ~ShowPidCommand() {}
   void execute() override;
 };
@@ -104,7 +105,7 @@ class QuitCommand : public BuiltInCommand
 {
   // TODO: Add your data members
 public:
-  QuitCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand::BuiltInCommand(cmd_line);
+  QuitCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand::BuiltInCommand(cmd_line) {};
   virtual ~QuitCommand() {}
   void execute() override;
 };
@@ -137,7 +138,7 @@ public:
     // TODO: Add your data members
   };
   // TODO: Add your data members
-  std::queue<JobEntry> jobs; // אולי נהפוך לרשימה מקושרת std::list?
+  std::vector<JobEntry> jobs; // אולי נהפוך לרשימה מקושרת std::list?
 
 public:
   JobsList();
@@ -162,7 +163,7 @@ class JobsCommand : public BuiltInCommand
 {
   // TODO: Add your data members
 public:
-  JobsCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand::BuiltInCommand(cmd_line);
+  JobsCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand::BuiltInCommand(cmd_line){};
   virtual ~JobsCommand() {}
   void execute() override;
 };
@@ -171,7 +172,7 @@ class ForegroundCommand : public BuiltInCommand
 {
   // TODO: Add your data members
 public:
-  ForegroundCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand::BuiltInCommand(cmd_line);
+  ForegroundCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand::BuiltInCommand(cmd_line){};
   virtual ~ForegroundCommand() {}
   void execute() override;
 };
@@ -180,7 +181,7 @@ class BackgroundCommand : public BuiltInCommand
 {
   // TODO: Add your data members
 public:
-  BackgroundCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand::BuiltInCommand(cmd_line);
+  BackgroundCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand::BuiltInCommand(cmd_line){};
   virtual ~BackgroundCommand() {}
   void execute() override;
 };
@@ -190,7 +191,7 @@ class TimeoutCommand : public BuiltInCommand
   /* Bonus */
   // TODO: Add your data members
 public:
-  explicit TimeoutCommand(const char *cmd_line) : BuiltInCommand::BuiltInCommand(cmd_line);
+  explicit TimeoutCommand(const char *cmd_line) : BuiltInCommand::BuiltInCommand(cmd_line){};
   virtual ~TimeoutCommand() {}
   void execute() override;
 };
@@ -199,7 +200,7 @@ class ChmodCommand : public BuiltInCommand
 {
   // TODO: Add your data members
 public:
-  ChmodCommand(const char *cmd_line) : BuiltInCommand::BuiltInCommand(cmd_line);
+  ChmodCommand(const char *cmd_line) : BuiltInCommand::BuiltInCommand(cmd_line){};
   virtual ~ChmodCommand() {}
   void execute() override;
 };
@@ -208,7 +209,7 @@ class GetFileTypeCommand : public BuiltInCommand
 {
   // TODO: Add your data members
 public:
-  GetFileTypeCommand(const char *cmd_line) : BuiltInCommand::BuiltInCommand(cmd_line);
+  GetFileTypeCommand(const char *cmd_line) : BuiltInCommand::BuiltInCommand(cmd_line){};
   virtual ~GetFileTypeCommand() {}
   void execute() override;
 };
@@ -217,7 +218,7 @@ class SetcoreCommand : public BuiltInCommand
 {
   // TODO: Add your data members
 public:
-  SetcoreCommand(const char *cmd_line) : BuiltInCommand::BuiltInCommand(cmd_line);
+  SetcoreCommand(const char *cmd_line) : BuiltInCommand::BuiltInCommand(cmd_line){};
   virtual ~SetcoreCommand() {}
   void execute() override;
 };
@@ -226,7 +227,7 @@ class KillCommand : public BuiltInCommand
 {
   // TODO: Add your data members
 public:
-  KillCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand::BuiltInCommand(cmd_line);
+  KillCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand::BuiltInCommand(cmd_line){};
   virtual ~KillCommand() {}
   void execute() override;
 };
@@ -236,8 +237,8 @@ class SmallShell
 private:
   // TODO: Add your data members
   std::string prompt;
-  char *last_wd;
-  Command *current_process_id;
+  std::string last_wd;
+  Command *current_process;
   JobsList *jobs_list;
 
   SmallShell();
@@ -257,10 +258,13 @@ public:
   //  aux
   void executeCommand(const char *cmd_line);
   // TODO: add extra methods as needed
+  std::string get_last_wd() const;
+  void set_last_wd(std::string);
   void printPrompt() const;
   void changeChprompt(const char *cmd_line);
   void addJob(Command *cmd, bool is_stopped = false);
   void removeJob(int job_id);
+  void printPrompt();
 };
 
 #endif // SMASH_COMMAND_H_

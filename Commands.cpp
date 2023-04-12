@@ -94,40 +94,38 @@ std::vector<std::string> get_args_in_vec(const char *cmd_line)
     for (std::string s; iss >> s;)
         res.push_back(s);
     return res;
-};
+}
+
+bool _isSimpleExternal(std::string str)
+{
+    return str.find_first_of("*?") == std::string::npos;
+}
 
 
 //<---------------------------C'tors and D'tors--------------------------->
 
 // ChangeDirCommand
-ChangeDirCommand::ChangeDirCommand(const char *cmd_line, char **plastPwd) : BuiltInCommand::BuiltInCommand(cmd_line), args(func()),
-                                                                            last_wd(plastPwd)
+ChangeDirCommand::ChangeDirCommand(const char *cmd_line) : BuiltInCommand::BuiltInCommand(cmd_line)
 {
-    if (args.size() != 2)
+    if (args_vec.size() != 2)
     {
         // לזרוק שגיאה על כמות לא נכונה של ארגומנטים או שלא נוספו ארגומנטים
         // throw error that "smash error: cd: too many arguments"
     }
-    else if (*plastPwd == "")
-    {
-        // לזרוק חריגה שתיקיה אחרונה חוקית לא קיימת עדיין
-        // throw error that "smash error: cd: OLDPWD not set"
-    }
-    else
-    {
-    }
+
+
+// העברתי את התנאי לתוך execute כי הוא מתקיים רק עם ארגומנט "-"
+//    if ((*plastPwd) == nullptr)
+//    {
+//        // לזרוק חריגה שתיקיה אחרונה חוקית לא קיימת עדיין
+//        // throw error that "smash error: cd: OLDPWD not set"
+//    }
 };
 
 // Small Shell
-SmallShell::SmallShell() : prompt("smash"), last_wd(new char[256]), current_process_id(nullptr), jobs_list()
-{
-    last_wd = nullptr;
-};
+SmallShell::SmallShell() : prompt("smash"), last_wd(""), current_process(nullptr), jobs_list()
+{}
 
-SmallShell::~SmallShell()
-{
-    delete last_wd;
-};
 
 
 // Command
@@ -220,7 +218,7 @@ void SmallShell::executeCommand(const char *cmd_line)
         }
         else
         {
-            current_process_id = cmd;
+            current_process = cmd;
             // חרא של האבא
         }
     }
@@ -255,25 +253,27 @@ void GetCurrDirCommand::execute()
 
 void ChangeDirCommand::execute()
 {
-    char *new_dir;
-    if (args.size() != 2)
+    SmallShell& smash = SmallShell::getInstance();
+    std::string new_dir;
+    if (args_vec.size() != 2)
     {
         // לזרוק שגיאה שאין ארגונטים
     }
-    if (args[1] == "-")
+    if (args_vec[1] == "-")
     {
-        if (p_last_wd == nullptr)
+        // if the last working directory doesn't exist
+        if (smash.get_last_wd().empty())
         {
             // לזרוק שגיאה שתיקיה אחרונה חוקית עוד לא הייתה
         }
         else
         {
-            new_dir = *p_last_wd;
+            new_dir = smash.get_last_wd();
         }
     }
     else
     {
-        new_dir = args[1];
+        new_dir = args_vec[1];
     }
 
     char buffer[256];
@@ -283,17 +283,17 @@ void ChangeDirCommand::execute()
         // לזרוק חריגה שקריאת מערכת נכשלה
     }
 
-    int res = chdir(new_dir);
-    // change failed
+    int res = chdir(new_dir.c_str());
+    // if change fails
     if (res == -1)
     {
         // perror("smash error: chdir failed");
         // לזרוק חריגה שקריאת מערכת נכשלה
     }
-        // change succeeded
+        // if change succeeds
     else
     {
-        strcpy(*p_last_wd, buffer);
+        smash.set_last_wd(string(buffer));
     }
     is_finished = true;
 }
@@ -308,7 +308,7 @@ void ExternalCommand::execute()
         smash.addJob(this);
     }
 
-    if (_isSimpleExternal(cmd_l)) // לממש פונקציה
+    if (_isSimpleExternal(cmd_l))
     {
         char **args= new char*[args_vec.size()];
         _parseCommandLine(cmd_l, args);
@@ -320,14 +320,18 @@ void ExternalCommand::execute()
     }
     else
     {
-        char *args = {"-c", cmd_l};
+        //char **args= new char*[args_vec.size()];
+        char *args[args_vec.size()] ;
+         // creating an appropriate **args format for execv()
+        _parseCommandLine(("-c " + string(cmd_l)).c_str() , args);
+
         if (execv("/bin/bash", args) == -1)
         {
             smash.removeJob(this->job_id);
             // ולזרוק שגיאה שפעולת מערכת לא הצליחה
         }
     }
-    is_finishied = true;
+    is_finished = true;
 }
 
 void JobsCommand::execute()
@@ -362,7 +366,7 @@ int JobsList::getMaxId() const
     return max_id;
 }
 
-void JobsList::addJob(Command *cmd, bool isStopped = false)
+void JobsList::addJob(Command * command, bool isStopped)
 {
     int job_id = getMaxId() + 1;
     command->setJobId(job_id);
@@ -420,7 +424,7 @@ SmallShell::printPrompt()
     std::cout << prompt;
 }
 
-void SmallShell::addJob(Command *cmd, bool is_stopped = false)
+void SmallShell::addJob(Command *cmd, bool is_stopped)
 {
     jobs_list->addJob(cmd, is_stopped);
 };
