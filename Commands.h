@@ -82,7 +82,6 @@ public:
   explicit RedirectionCommand(const char *cmd_line); // Command::Command(cmd_line)
   virtual ~RedirectionCommand() {}
   void execute() override;
-  void prepare() override;
   void cleanup() override;
 };
 
@@ -248,8 +247,10 @@ public:
 class KillCommand : public BuiltInCommand
 {
   // TODO: Add your data members
+  JobsList *jobs;
+
 public:
-  KillCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand::BuiltInCommand(cmd_line){};
+  KillCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand::BuiltInCommand(cmd_line), jobs(jobs){};
   virtual ~KillCommand() {}
   void execute() override;
 };

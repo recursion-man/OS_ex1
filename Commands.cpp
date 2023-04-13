@@ -27,7 +27,15 @@ const std::string WHITESPACE = " \n\r\t\f\v";
 #define FUNC_ENTRY()
 #define FUNC_EXIT()
 #endif
-
+bool isStringNumber(std::string str)
+{
+    for (int i = 0; i < strlen(str); i++)
+    {
+        if (!isdigit(str[i]))
+            return false;
+    }
+    return true;
+}
 string _ltrim(const std::string &s)
 {
     size_t start = s.find_first_not_of(WHITESPACE);
@@ -461,22 +469,23 @@ void JobsCommand::execute()
 
 void BackgroundCommand::execute()
 {
-    std::vector<std::string> args = get_args_in_vec(this->cmd_l);
-    if (args.size() > 2 || args.size() < 1)
+    if (args_vec.size() > 2 || args_vec.size() < 1)
     {
         // לזרוק שגיאה שinvalid arguments
     }
-    else if (args.size() == 2)
+    else if (args_vec.size() == 2)
     {
         if (this->jobs != nullptr)
         {
             int job_id_to_find;
-            try
+            if (isStringNumber(args_vec[1]))
             {
-                job_id_to_find = stoi(args[1]);
+
+                job_id_to_find = stoi(args_vec[1]);
             }
-            catch (std::exception e)
+            else
             {
+
                 // לזרוק שגיאה שהפורמט ארגומנטים לא מתאים
                 // smash error: bg: invalid arguments
             }
@@ -560,12 +569,14 @@ void ForegroundCommand::execute()
     else if (args_vec.size() == 2)
     {
         int job_id_to_find;
-        try
+        if (isStringNumber(args_vec[1]))
         {
+
             job_id_to_find = stoi(args_vec[1]);
         }
-        catch (std::exception e)
+        else
         {
+
             // לזרוק שגיאה שהפורמט ארגומנטים לא מתאים
             // smash error: bg: invalid arguments
         }
@@ -603,6 +614,95 @@ void QuitCommand::execute()
         jobs->killAllJobs();
     }
     exit(0);
+}
+
+int getSignalNumber(std::string str)
+{
+    if (str[0] != '-')
+    {
+        return -1;
+    }
+    str.erase(0, 1);
+    int num;
+    if (isStringNumber(str))
+    {
+        num = stoi(str);
+        return num;
+    }
+    return -1;
+}
+void KillCommand::execute()
+{
+    if (args_vec.size() != 3)
+    {
+        // להדפיס שגיאה על ארגמונטים לא טובה
+        // smash error: kill: invalid arguments
+    }
+    int signal_num = getSignalNumber(args_vec[1]); // return -1 if the format is wrong
+    if (signal_num > 0 && signal_num < 32)
+    {
+
+        JobsList::JobEntry *job = jobs->getJobById(job_id);
+        if (job == nullptr)
+        {
+            // לזרוק שגיאה שעבודה לא קיימת
+            // smash error: kill: job-id <job-id> does not exist
+        }
+        else
+        {
+
+            int pid = job->getCommand()->getProcessId();
+            if (signal_num == 9 || signal_num == 15) // סיגנלים של להרוג
+            {
+                if (kill(pid, signal_num) == -1)
+                {
+                    // להדפיס שגיאה שkill לא עבדה
+                    //  perror("..kill...")
+                }
+                else
+                {
+                    jobs->removeJobById(job->getJobId());
+                }
+            }
+            else if (signal_num == 2) // סיגנלים לעצור את התהליך
+            {
+                if (kill(pid, signal_num) == -1)
+                {
+                    // להדפיס שגיאה שkill לא עבדה
+                    //  perror("..kill...")
+                }
+                else
+                {
+                    job->setStopped(true);
+                }
+            }
+            else if (signal_num == 18) // סיגנלים להמשיך את התהליך
+            {
+                if (kill(pid, signal_num) == -1)
+                {
+                    // להדפיס שגיאה שkill לא עבדה
+                    //  perror("..kill...")
+                }
+                else
+                {
+                    job->setStopped(false);
+                }
+            }
+            else
+            {
+                if (kill(pid, signal_num) == -1)
+                {
+                    // להדפיס שגיאה שkill לא עבדה
+                    //  perror("..kill...")
+                }
+            }
+        }
+    }
+    else
+    {
+        // להדפיס שגיאה על ארגמונטים לא טובה
+        // smash error: kill: invalid arguments
+    }
 }
 
 //<--------------------------- execute functions - end--------------------------->
@@ -734,6 +834,15 @@ void JobsList::removeFinishedJobs()
         if (waitpid(jobs[i]->getCommand()->getProcessId(), nullptr, WNOHANG)) // האם זה גם משחרר את התהליך?
         {
             jobs_to_delete.push_back(jobs[i]->getJobId());
+        }
+        // updates the stoped feild in each job
+        if (waitpid(jobs[i]->getCommand()->getProcessId(), nullptr, WUNTRACED))
+        {
+            jobs[i]->setStopped(true);
+        }
+        else
+        {
+            jobs[i]->setStopped(false);
         }
     }
     for (int i = 0; i < jobs_to_delete.size(); i++)
