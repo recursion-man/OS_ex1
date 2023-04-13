@@ -10,7 +10,6 @@
 #include <sys/types.h>
 #include <memory>
 
-
 #define SIGKILL 9
 using namespace std;
 
@@ -141,13 +140,13 @@ RedirectionCommand::RedirectionCommand(const char *cmd_line) : Command::Command(
 {
     /// edge case: check if the last/fisrt arg is > or |
 
-    SmallShell & smash = SmallShell::getInstance();
-    string cmd_str = string (cmd_line);
+    SmallShell &smash = SmallShell::getInstance();
+    string cmd_str = string(cmd_line);
     int sign_index = cmd_str.find(">");
-    string base_cmd = cmd_str.substr(0,sign_index);
+    string base_cmd = cmd_str.substr(0, sign_index);
 
     // a little messy... can be simpler
-    dest = get_args_in_vec(cmd_str.substr(sign_index+1,cmd_str.size()+1).c_str())[0];
+    dest = get_args_in_vec(cmd_str.substr(sign_index + 1, cmd_str.size() + 1).c_str())[0];
 
     base_command = smash.CreateCommand(base_cmd.c_str());
 
@@ -166,7 +165,7 @@ void RedirectionCommand::prepare()
 
     int res_close = close(1);
     /// if (res_close == -1) {throw}
-    int res_open =  open(dest.c_str(), O_CREAT|O_WRONLY|O_TRUNC S_IRWXU);
+    int res_open = open(dest.c_str(), O_CREAT | O_WRONLY | O_TRUNC S_IRWXU);
     /// if (res_open ==-1) {throw}
 }
 
@@ -176,15 +175,13 @@ void RedirectionCommand::cleanup()
     /// if (res ==-1) --- {throw serious exception- smash output is wrong}
 }
 
-
-
-PipeCommand::PipeCommand(const char *cmd_line): Command::Command(cmd_line)
+PipeCommand::PipeCommand(const char *cmd_line) : Command::Command(cmd_line)
 {
-    SmallShell & smash = SmallShell::getInstance();
-    string cmd_str = string (cmd_line);
+    SmallShell &smash = SmallShell::getInstance();
+    string cmd_str = string(cmd_line);
     int sign_index = cmd_str.find("|");
-    string first_cmd = cmd_str.substr(0,sign_index-1);
-    string second_cmd = cmd_str.substr(sign_index+1,cmd_str.size()+1);
+    string first_cmd = cmd_str.substr(0, sign_index - 1);
+    string second_cmd = cmd_str.substr(sign_index + 1, cmd_str.size() + 1);
     write_command = smash.CreateCommand(first_cmd.c_str());
     read_command = smash.CreateCommand(second_cmd.c_str());
     pipe(fd);
@@ -194,14 +191,13 @@ PipeCommand::PipeCommand(const char *cmd_line): Command::Command(cmd_line)
 
 void PipeCommand::prepareWrite()
 {
-    dup2(fd[1],1);
+    dup2(fd[1], 1);
     close(fd[0]);
     close(fd[1]);
 }
 
 void PipeCommand::writeCleanUp()
 {
-
 }
 
 void PipeCommand::execute()
@@ -212,7 +208,6 @@ void PipeCommand::execute()
 
     prepareRead();
     read_command->execute();
-
 }
 
 //<---------------------------C'tors and D'tors - end--------------------------->
@@ -276,7 +271,7 @@ void JobsList::JobEntry::setStopped(bool is_stopped)
     is_stopped = is_stopped;
 };
 
-void SmallShell::setCurrentProcess(Command* cmd)
+void SmallShell::setCurrentProcess(Command *cmd)
 {
     current_process = cmd;
 }
@@ -285,10 +280,8 @@ void SmallShell::setCurrentProcess(Command* cmd)
 
 //<---------------------------execute functions--------------------------->
 
-
-
-
-void SmallShell::executeCommand(const char *cmd_line) {
+void SmallShell::executeCommand(const char *cmd_line)
+{
     string cmd_s = _trim(string(cmd_line));
     string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
 
@@ -297,7 +290,6 @@ void SmallShell::executeCommand(const char *cmd_line) {
 
     Command *cmd = CreateCommand(cmd_line);
     cmd->execute();
-
 }
 
 //    else if (isBuildInCommand(firstWord))
@@ -323,12 +315,11 @@ void SmallShell::executeCommand(const char *cmd_line) {
 //            }
 //        }
 
-    // TODO: Add your implementation here
-    // for example:
-    // Command* cmd = CreateCommand(cmd_line);
-    // cmd->execute();
-    // Please note that you must fork smash process for some commands (e.g., external commands....)
-
+// TODO: Add your implementation here
+// for example:
+// Command* cmd = CreateCommand(cmd_line);
+// cmd->execute();
+// Please note that you must fork smash process for some commands (e.g., external commands....)
 
 void ShowPidCommand::execute()
 {
@@ -399,31 +390,39 @@ void ChangeDirCommand::execute()
     is_finished = true;
 }
 
-void ExternalCommand::execute() {
+void ExternalCommand::execute()
+{
     SmallShell &smash = SmallShell::getInstance();
     int pid = fork();
     //--------------------- son -----------------------------//
-    if (pid == 0) {
+    if (pid == 0)
+    {
         setpgrp();
         this->process_id = getpid();
-        if (_isBackgroundCommand(cmd_l)) {
+        if (_isBackgroundCommand(cmd_l))
+        {
             smash.addJob(this);
         }
 
-        if (_isSimpleExternal(cmd_l)) {
+        if (_isSimpleExternal(cmd_l))
+        {
             char **args = new char *[args_vec.size()];
             _parseCommandLine(cmd_l, args);
-            if (execv(args[0], args) == -1) {
+            if (execv(args[0], args) == -1)
+            {
                 smash.removeJob(this->job_id);
                 // ולזרוק שגיאה שפעולת מערכת לא הצליחה
             }
-        } else {
+        }
+        else
+        {
             // char **args= new char*[args_vec.size()];
             char *args[args_vec.size()];
             // creating an appropriate **args format for execv()
             _parseCommandLine(("-c " + string(cmd_l)).c_str(), args);
 
-            if (execv("/bin/bash", args) == -1) {
+            if (execv("/bin/bash", args) == -1)
+            {
                 smash.removeJob(this->job_id);
                 // ולזרוק שגיאה שפעולת מערכת לא הצליחה
             }
@@ -434,7 +433,8 @@ void ExternalCommand::execute() {
     //------------------------ father--------------------//
     else
     {
-        if (!(_isBackgroundCommand(cmd_l))) {
+        if (!(_isBackgroundCommand(cmd_l)))
+        {
             smash.setCurrentProcess(this);
             waitpid(pid);
             smash.setCurrentProcess(nullptr);
@@ -460,7 +460,18 @@ void BackgroundCommand::execute()
     {
         if (this->jobs != nullptr)
         {
-            JobsList::JobEntry *job = this->jobs->getJobById(args[1]);
+            int job_id_to_find;
+            try
+            {
+                job_id_to_find = stoi(args[1]);
+            }
+            catch (std::exception e)
+            {
+                // לזרוק שגיאה שהפורמט ארגומנטים לא מתאים
+                // smash error: bg: invalid arguments
+            }
+
+            JobsList::JobEntry *job = this->jobs->getJobById();
             if (job != nullptr)
             {
                 if (job->getStopped())
@@ -526,8 +537,6 @@ void QuitCommand::execute()
     exit(0);
 }
 
-
-
 //<--------------------------- execute functions - end--------------------------->
 
 //<--------------------------- Jobs List functions--------------------------->
@@ -555,20 +564,20 @@ int JobsList::getMaxId() const
 
 void JobsList::addJob(Command *command, bool isStopped = false)
 {
-    if (cmd->getJobId() == -1)
+    std::shared_ptr<JobEntry> new_job(new JobEntry(command, isStopped));
+    if (command->getJobId() == -1)
     {
         int job_id = getMaxId() + 1;
         command->setJobId(job_id);
-        std::shared_ptr<JobEntry> new_job(new JobEntry(cmd, isStopped));
-        jobs.push(new_job);
+        jobs.push_back(new_job);
     }
     else
     {
         // was in the list before
-        std::shared_ptr<JobEntry> new_job(new JobEntry(cmd, isStopped));
+
         for (int i = 0; i < jobs.size(); i++)
         {
-            if (jobs[i]->getJobId() > cmd->getJobId())
+            if (jobs[i]->getJobId() > command->getJobId())
             {
                 jobs.insert(jobs.begin() + i, new_job);
                 break;
@@ -589,7 +598,7 @@ void JobsList::removeJobById(int jobId)
     }
 }
 
-JobEntry *JobsList::getJobById(int jobId)
+JobsList::JobEntry *JobsList::getJobById(int jobId)
 {
     for (int i = 0; i < jobs.size(); i++)
     {
@@ -601,12 +610,12 @@ JobEntry *JobsList::getJobById(int jobId)
     return nullptr;
 }
 
-JobEntry *JobsList::getLastJob(int *lastJobId)
+JobsList::JobEntry *JobsList::getLastJob(int *lastJobId)
 {
     return jobs.back().get();
 }
 
-JobEntry *JobsList::getLastStoppedJob(int *jobId)
+JobsList::JobEntry *JobsList::getLastStoppedJob(int *jobId)
 {
     int i = jobs.size() - 1;
     while (i >= 0)
@@ -631,7 +640,7 @@ void JobsList::killAllJobs()
 {
     this->removeFinishedJobs();
     std::cout << " sending SIGKILL signal to " << jobs.size() << " jobs:" << std::endl;
-    for (int i = 0 ;i < jobs.size(); i++)
+    for (int i = 0; i < jobs.size(); i++)
     {
         std::cout << jobs[i]->getCommand()->getProcessId() << ": " << jobs[i]->getCommand()->getCmdL() << std::endl;
     }
@@ -655,9 +664,7 @@ void JobsList::removeFinishedJobs()
     }
     for (int i = 0; i < jobs_to_delete.size(); i++)
     {
-        int job_id_to_delete = jobs_to_delete.pop_back();
-
-        this->removeJobById(job_id_to_delete);
+        this->removeJobById(jobs_to_delete[i]);
     }
 }
 
@@ -678,7 +685,6 @@ bool isPipe(string cmd_str)
     return cmd_str.find("|") != string::npos;
 }
 
-
 Command *SmallShell::CreateCommand(const char *cmd_line)
 {
     // For example:
@@ -689,8 +695,8 @@ Command *SmallShell::CreateCommand(const char *cmd_line)
     if (isRedirect(string(cmd_line)))
     {
         return new RedirectionCommand(cmd_line);
-
-    } else if (isPipe(string(cmd_line)))
+    }
+    else if (isPipe(string(cmd_line)))
     {
         return new PipeCommand(cmd_line);
     }
@@ -708,15 +714,15 @@ Command *SmallShell::CreateCommand(const char *cmd_line)
     }
     else if (firstWord.compare("bg") == 0)
     {
-        return new BackgroundCommand(cmd_line, &this->jobs_list);
+        return new BackgroundCommand(cmd_line, this->jobs_list);
     }
     else if (firstWord.compare("fg") == 0)
     {
-        return new ForegroundCommand(cmd_line, &this->jobs_list);
+        return new ForegroundCommand(cmd_line, this->jobs_list);
     }
     else if (firstWord.compare("quit") == 0)
     {
-        return new QuitCommand(cmd_line, &this->jobs_list);
+        return new QuitCommand(cmd_line, this->jobs_list);
     }
     // להוסיף עוד
     else
@@ -734,7 +740,7 @@ void SmallShell::changeChprompt(const char *cmd_line)
     prompt = new_prompt;
 }
 
-SmallShell::printPrompt()
+void SmallShell::printPrompt() const
 {
     std::cout << prompt;
 }

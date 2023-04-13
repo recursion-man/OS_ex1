@@ -19,10 +19,10 @@ protected:
   std::vector<std::string> args_vec;
 
 public:
-  Command(const char *cmd_line);// : job_id(-1), process_id(getpid()), cmd_l(cmd_line), is_finished(false){};
+  Command(const char *cmd_line); // : job_id(-1), process_id(getpid()), cmd_l(cmd_line), is_finished(false){};
   virtual ~Command();
   virtual void execute() = 0;
-  virtual void preparePd(Command*);
+  virtual void preparePd(Command *);
   virtual void cleanup();
 
   // getters
@@ -55,11 +55,11 @@ public:
 
 class PipeCommand : public Command
 {
- Command* write_command;
- Command* read_command;
- int standard_in_pd;
- int standard_out_pd;
- int fd[2];
+  Command *write_command;
+  Command *read_command;
+  int standard_in_pd;
+  int standard_out_pd;
+  int fd[2];
 
 public:
   PipeCommand(const char *cmd_line);
@@ -70,27 +70,27 @@ public:
   void prepareRead();
   void ReadCleanUp();
   void writeCleanUp();
-
 };
 
 class RedirectionCommand : public Command
 {
-    Command* base_command;
-    std::string dest;
-    int out_pd;
+  Command *base_command;
+  std::string dest;
+  int out_pd;
+
 public:
-  explicit RedirectionCommand(const char *cmd_line);// Command::Command(cmd_line)
+  explicit RedirectionCommand(const char *cmd_line); // Command::Command(cmd_line)
   virtual ~RedirectionCommand() {}
   void execute() override;
-   void prepare() override;
-   void cleanup() override;
-
+  void prepare() override;
+  void cleanup() override;
 };
 
 class ChangeDirCommand : public BuiltInCommand
 {
 private:
-    char** plastPwd;
+  char **plastPwd;
+
 public:
   // TODO: Add your data members public:
   ChangeDirCommand(const char *cmd_line);
@@ -117,9 +117,10 @@ public:
 class JobsList;
 class QuitCommand : public BuiltInCommand
 {
+  JobsList *jobs;
   // TODO: Add your data members
 public:
-  QuitCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand::BuiltInCommand(cmd_line) {};
+  QuitCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand::BuiltInCommand(cmd_line), jobs(jobs){};
   virtual ~QuitCommand() {}
   void execute() override;
 };
@@ -140,7 +141,9 @@ public:
 
     //  getters
     bool getStopped() const;
+    bool isJobFinished() const;
     Command *getCommand() const;
+    int getJobId() const;
 
     //  setters
     void setTime();
@@ -152,7 +155,7 @@ public:
     // TODO: Add your data members
   };
   // TODO: Add your data members
-  std::vector<JobEntry> jobs; // אולי נהפוך לרשימה מקושרת std::list?
+  std::vector<std::shared_ptr<JobEntry>> jobs; // אולי נהפוך לרשימה מקושרת std::list?
 
 public:
   JobsList();
@@ -162,6 +165,7 @@ public:
   JobEntry *getJobById(int jobId);
   JobEntry *getLastJob(int *lastJobId);
   JobEntry *getLastStoppedJob(int *jobId);
+  int getMaxId() const;
 
   //  aux
   void addJob(Command *cmd, bool isStopped = false);
@@ -175,9 +179,10 @@ public:
 
 class JobsCommand : public BuiltInCommand
 {
+  JobsList *jobs;
   // TODO: Add your data members
 public:
-  JobsCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand::BuiltInCommand(cmd_line){};
+  JobsCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand::BuiltInCommand(cmd_line), jobs(jobs){};
   virtual ~JobsCommand() {}
   void execute() override;
 };
@@ -193,9 +198,10 @@ public:
 
 class BackgroundCommand : public BuiltInCommand
 {
+  JobsList *jobs;
   // TODO: Add your data members
 public:
-  BackgroundCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand::BuiltInCommand(cmd_line){};
+  BackgroundCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand::BuiltInCommand(cmd_line), jobs(jobs){};
   virtual ~BackgroundCommand() {}
   void execute() override;
 };
@@ -278,8 +284,8 @@ public:
   void changeChprompt(const char *cmd_line);
   void addJob(Command *cmd, bool is_stopped = false);
   void removeJob(int job_id);
-  void printPrompt();
-  void setCurrentProcess(Command*);
+  void printPrompt() const;
+  void setCurrentProcess(Command *cmd);
 };
 
 #endif // SMASH_COMMAND_H_
