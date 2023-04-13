@@ -15,22 +15,19 @@ protected:
   int job_id;
   int process_id;
   const char *cmd_l;
-  bool is_finished;
   bool external;
   std::vector<std::string> args_vec;
 
 public:
-  Command(const char *cmd_line);// : job_id(-1), process_id(getpid()), cmd_l(cmd_line), is_finished(false){};
+  Command(const char *cmd_line);
   virtual ~Command();
   virtual void execute() = 0;
-//  virtual void preparePd(Command*,bool);
-  //virtual void cleanup();
-  bool isExternal(){return external;}
+  //  virtual void preparePd(Command*,bool);
+  // virtual void cleanup();
+  bool isExternal() { return external; }
 
-
-    // getters
+  // getters
   const char *getCmdL() const;
-  bool getStatus() const;
   int getJobId() const;
   int getProcessId() const;
 
@@ -51,7 +48,7 @@ public:
 class ExternalCommand : public Command
 {
 public:
-  ExternalCommand(const char *cmd_line) : Command::Command(cmd_line){ external = true;}
+  ExternalCommand(const char *cmd_line) : Command::Command(cmd_line) { external = true; }
   virtual ~ExternalCommand() {}
   void execute() override;
 };
@@ -59,18 +56,17 @@ public:
 class PipeCommand : public Command
 {
 protected:
- Command* write_command;
- Command* read_command;
- int standard_in_pd;
- int standard_out_pd;
- int standard_error_pd;
- int fd[2];
-
+  Command *write_command;
+  Command *read_command;
+  int standard_in_pd;
+  int standard_out_pd;
+  int standard_error_pd;
+  int fd[2];
 
 public:
   PipeCommand(const char *cmd_line, std::string);
   virtual ~PipeCommand() {}
-  //void execute() override;
+  // void execute() override;
   void execute(int);
   void prepareWrite(int);
   void prepareRead(int);
@@ -78,56 +74,58 @@ public:
   virtual void cleanUp();
 };
 
-class PipeNormalCommand :public PipeCommand
+class PipeNormalCommand : public PipeCommand
 {
 public:
-    PipeNormalCommand(const char *cmd_line): PipeCommand::PipeCommand(cmd_line, "|" ){}
-//    void prepareWrite() override;
-//    void prepareRead() override;
-    void execute() override;
+  PipeNormalCommand(const char *cmd_line) : PipeCommand::PipeCommand(cmd_line, "|") {}
+  //    void prepareWrite() override;
+  //    void prepareRead() override;
+  void execute() override;
 };
 
-class PipeSterrCommand :public PipeCommand
+class PipeSterrCommand : public PipeCommand
 {
 public:
-    PipeSterrCommand(const char *cmd_line): PipeCommand::PipeCommand(cmd_line, "|&" ){}
-//    void prepareWrite() override;
-//    void prepareRead() override;
-    void execute() override;
+  PipeSterrCommand(const char *cmd_line) : PipeCommand::PipeCommand(cmd_line, "|&") {}
+  //    void prepareWrite() override;
+  //    void prepareRead() override;
+  void execute() override;
 };
 
 class RedirectionCommand : public Command
 {
 protected:
-    Command* base_command;
-    std::string dest;
-    int out_pd;
+  Command *base_command;
+  std::string dest;
+  int out_pd;
+
 public:
-  explicit RedirectionCommand(const char *cmd_line, std::string);// Command::Command(cmd_line)
+  explicit RedirectionCommand(const char *cmd_line, std::string); // Command::Command(cmd_line)
   virtual ~RedirectionCommand() {}
   void execute() override;
-   virtual void prepare();
-   void cleanup();
+  virtual void prepare();
+  void cleanup();
 };
 
-class RedirectionAppendCommand :public RedirectionCommand
+class RedirectionAppendCommand : public RedirectionCommand
 {
 public:
-    explicit RedirectionAppendCommand(const char *cmd_line) : RedirectionCommand(cmd_line, ">>"){};
-    void prepare() override;
+  explicit RedirectionAppendCommand(const char *cmd_line) : RedirectionCommand(cmd_line, ">>"){};
+  void prepare() override;
 };
 
-class RedirectionNormalCommand:public RedirectionCommand
+class RedirectionNormalCommand : public RedirectionCommand
 {
 public:
-    explicit RedirectionNormalCommand(const char *cmd_line) : RedirectionCommand(cmd_line, ">"){};
-    void prepare() override;
+  explicit RedirectionNormalCommand(const char *cmd_line) : RedirectionCommand(cmd_line, ">"){};
+  void prepare() override;
 };
 
 class ChangeDirCommand : public BuiltInCommand
 {
 private:
-    char** plastPwd;
+  char **plastPwd;
+
 public:
   // TODO: Add your data members public:
   ChangeDirCommand(const char *cmd_line);
@@ -178,7 +176,6 @@ public:
 
     //  getters
     bool getStopped() const;
-    bool isJobFinished() const;
     Command *getCommand() const;
     int getJobId() const;
 
