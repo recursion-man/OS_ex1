@@ -3,12 +3,14 @@
 #include <iostream>
 #include <vector>
 #include <sstream>
+// #include <sched.h>
 // #include <sys/wait.h>
 #include <iomanip>
 #include "Commands.h"
 #include <signal.h>
 #include <sys/types.h>
 #include <memory>
+#include "./Exeptions.h"
 
 #define SIGKILL 9
 using namespace std;
@@ -114,23 +116,6 @@ bool _isSimpleExternal(std::string str)
 }
 
 //<---------------------------C'tors and D'tors--------------------------->
-
-// ChangeDirCommand
-ChangeDirCommand::ChangeDirCommand(const char *cmd_line) : BuiltInCommand::BuiltInCommand(cmd_line)
-{
-    if (args_vec.size() != 2)
-    {
-        // לזרוק שגיאה על כמות לא נכונה של ארגומנטים או שלא נוספו ארגומנטים
-        // throw error that "smash error: cd: too many arguments"
-    }
-
-    // העברתי את התנאי לתוך execute כי הוא מתקיים רק עם ארגומנט "-"
-    //    if ((*plastPwd) == nullptr)
-    //    {
-    //        // לזרוק חריגה שתיקיה אחרונה חוקית לא קיימת עדיין
-    //        // throw error that "smash error: cd: OLDPWD not set"
-    //    }
-};
 
 // Small Shell
 SmallShell::SmallShell() : prompt("smash"), last_wd(""), current_command(nullptr), jobs_list()
@@ -344,6 +329,7 @@ void Command::setJobId(int id)
 {
     job_id = id;
 }
+
 void Command::setProcessId(int id)
 {
     process_id = id;
@@ -376,38 +362,43 @@ void SmallShell::executeCommand(const char *cmd_line)
     if (firstWord.compare("chprompt") == 0)
     {
         changeChprompt(cmd_line);
-
-        Command *cmd = CreateCommand(cmd_line);
-        if (!cmd->isExternal())
+        return;
+    }
+    Command *cmd = CreateCommand(cmd_line);
+    if (!cmd->isExternal())
+    {
+        cmd->execute();
+    }
+    else
+    {
+        int pid = fork();
+        //--------------------- son -----------------------------//
+        if (pid == 0)
         {
+            if (setpgrp() == -1)
+            {
+                SystemCallFailed e("smash error: setpgrp failed");
+                throw e;
+            }
             cmd->execute();
         }
+
+        //------------------------ father--------------------//
         else
         {
-            int pid = fork();
-            //--------------------- son -----------------------------//
-            if (pid == 0)
+            if (!(_isBackgroundCommand(cmd_line)))
             {
-                setpgrp();
-                cmd->execute();
+                current_command = (cmd);
+                waitpid(pid);
+                current_command = (nullptr);
             }
-
-            //------------------------ father--------------------//
             else
             {
-                if (!(_isBackgroundCommand(cmd_line)))
-                {
-                    current_command = (cmd);
-                    waitpid(pid);
-                    current_command = (nullptr);
-                }
-                else
-                {
-                    this->addJob(cmd, false);
-                }
+                this->addJob(cmd, false);
             }
         }
     }
+}
 }
 
 //    else if (isBuildInCommand(firstWord))
@@ -454,6 +445,8 @@ void GetCurrDirCommand::execute()
     }
     else
     {
+        SystemCallFailed e("smash error: getcwd failed");
+        throw e;
         // perror("smash error: getcwd failed");
         // לזרוק חריגה שקראת מערכת נכשלה
     }
@@ -465,6 +458,8 @@ void ChangeDirCommand::execute()
     std::string new_dir;
     if (args_vec.size() != 2)
     {
+        InvaildArgument e("smash error: cd: too many arguments");
+        throw e;
         // לזרוק שגיאה שאין ארגונטים
     }
     if (args_vec[1] == "-")
@@ -472,6 +467,8 @@ void ChangeDirCommand::execute()
         // if the last working directory doesn't exist
         if (smash.get_last_wd().empty())
         {
+            OldPWDNotSet e("smash error: cd: OLDPWD not set");
+            throw e;
             // לזרוק שגיאה שתיקיה אחרונה חוקית עוד לא הייתה
         }
         else
@@ -487,6 +484,9 @@ void ChangeDirCommand::execute()
     char buffer[256];
     if (getcwd(buffer, sizeof(buffer)) == NULL)
     {
+        SystemCallFailed e("smash error: getcwd failed");
+        throw e;
+
         // perror("smash error: getcwd failed");
         // לזרוק חריגה שקריאת מערכת נכשלה
     }
@@ -495,6 +495,8 @@ void ChangeDirCommand::execute()
     // if change fails
     if (res == -1)
     {
+        SystemCallFailed e("smash error: chdir failed");
+        throw e;
         // perror("smash error: chdir failed");
         // לזרוק חריגה שקריאת מערכת נכשלה
     }
@@ -514,6 +516,10 @@ void ExternalCommand::execute()
     {
         smash.addJob(this);
     }
+    else
+    {
+        smash.setCurrentCommand(this);
+    }
     // להוסיף פה אחרת: ואז לעדכן את המצביע שsmash שמצביע על התהליך הנוכחי
 
     if (_isSimpleExternal(cmd_l))
@@ -523,6 +529,9 @@ void ExternalCommand::execute()
         if (execv(args[0], args) == -1)
         {
             smash.removeJob(this->job_id);
+            smash.setCurrentCommand(nullptr);
+            SystemCallFailed e("smash error: exec failed");
+            throw e;
             // ולזרוק שגיאה שפעולת מערכת לא הצליחה
         }
     }
@@ -537,6 +546,8 @@ void ExternalCommand::execute()
         {
             smash.removeJob(this->job_id);
             // ולזרוק שגיאה שפעולת מערכת לא הצליחה
+            SystemCallFailed e("smash error: exec failed");
+            throw e;
         }
     }
 }
@@ -549,8 +560,10 @@ void JobsCommand::execute()
 
 void BackgroundCommand::execute()
 {
-    if (args_vec.size() > 2 || args_vec.size() < 1)
+    if (args_vec.size() != 2 || args_vec.size() != 1)
     {
+        InvaildArgument e("smash error: bg: invalid arguments");
+        throw e;
         // לזרוק שגיאה שinvalid arguments
     }
     else if (args_vec.size() == 2)
@@ -565,7 +578,8 @@ void BackgroundCommand::execute()
             }
             else
             {
-
+                InvaildArgument e("smash error: bg: invalid arguments");
+                throw e;
                 // לזרוק שגיאה שהפורמט ארגומנטים לא מתאים
                 // smash error: bg: invalid arguments
             }
@@ -582,12 +596,20 @@ void BackgroundCommand::execute()
                 }
                 else
                 {
+                    std::string str_error = "smash error: bg: job-id " + job_id_to_find;
+                    str_error += " is already running in the background";
+                    JobAlreadyRunning e(str_error);
+                    throw e;
                     // להדפיס שגיאה שהעבודה הזאת כבר רצה ברקע
                     // smash error: bg: job-id <job-id> is already running in the background
                 }
             }
             else
             {
+                std::string str_error = "smash error: bg: job-id " + job_id_to_find;
+                str_error += " does not exist";
+                JobIdDoesntExist e(str_error);
+                throw e;
                 // לזרוק שגיאה שלא קיימת כזאת עבודה:
                 //  smash error: bg: job-id <job-id> does not exist
             }
@@ -606,6 +628,8 @@ void BackgroundCommand::execute()
             }
             else
             {
+                NoStoppedJobs e("smash error: bg: there is no stopped jobs to resume");
+                throw e;
                 // לזרוק שגיאה שלא קיימת עבודה שנעצרה:
                 //  smash error: bg: there is no stopped jobs to resume
             }
@@ -618,6 +642,8 @@ void activateCommand(int job_id, JobsList *jobs)
     JobsList::JobEntry *job_to_cont = job_id == 0 ? jobs->getLastJob(nullptr) : jobs->getJobById(job_id);
     if (job_to_cont == nullptr)
     {
+        JobsListEmpty e("smash error: fg: jobs list is empty");
+        throw e;
         // לזרוק שגיאה שהרשימת עבודות ריקה
         // smash error: fg: jobs list is empty
     }
@@ -627,6 +653,8 @@ void activateCommand(int job_id, JobsList *jobs)
         int pid = job_to_cont->getCommand()->getProcessId();
         if (kill(pid, SIGCONT) == -1)
         {
+            SystemCallFailed e("smash error: kill failed");
+            throw e;
             // לזרוק שגיאה שפעולת מערכת kill לא הצליחה
             // perror("perror(“smash error: kill failed”");
         }
@@ -656,12 +684,15 @@ void ForegroundCommand::execute()
         }
         else
         {
-
+            InvaildArgument e("smash error: bg: invalid arguments");
+            throw e;
             // לזרוק שגיאה שהפורמט ארגומנטים לא מתאים
             // smash error: bg: invalid arguments
         }
         if (job_id_to_find <= 0)
         {
+            InvaildArgument e("smash error: bg: invalid arguments");
+            throw e;
             // לזרוק שגיאה שהפורמט ארגומנטים לא מתאים
             // smash error: bg: invalid arguments
         }
@@ -672,6 +703,8 @@ void ForegroundCommand::execute()
     }
     else
     {
+        InvaildArgument e("smash error: bg: invalid arguments");
+        throw e;
         // לזרוק שגיאה שהפורמט ארגומנטים לא מתאים
         // smash error: bg: invalid arguments
     }
@@ -696,6 +729,7 @@ void QuitCommand::execute()
     exit(0);
 }
 
+// checks if the first char is '-' and if the string given is a number -and returns it. if Not - return -1.
 int getSignalNumber(std::string str)
 {
     if (str[0] != '-')
@@ -711,10 +745,13 @@ int getSignalNumber(std::string str)
     }
     return -1;
 }
+
 void KillCommand::execute()
 {
     if (args_vec.size() != 3)
     {
+        InvaildArgument e("smash error: kill: invalid arguments");
+        throw e;
         // להדפיס שגיאה על ארגמונטים לא טובה
         // smash error: kill: invalid arguments
     }
@@ -725,6 +762,10 @@ void KillCommand::execute()
         JobsList::JobEntry *job = jobs->getJobById(job_id);
         if (job == nullptr)
         {
+            std::string str_error = "smash error: kill: job-id " + job_id;
+            str_error += " does not exist";
+            JobIdDoesntExist e(str_error);
+            throw e;
             // לזרוק שגיאה שעבודה לא קיימת
             // smash error: kill: job-id <job-id> does not exist
         }
@@ -732,10 +773,12 @@ void KillCommand::execute()
         {
 
             int pid = job->getCommand()->getProcessId();
-            if (signal_num == 9 || signal_num == 15) // סיגנלים של להרוג
+            if (signal_num == 9 || signal_num == 15 || signal_num == 6) // סיגנלים של להרוג
             {
                 if (kill(pid, signal_num) == -1)
                 {
+                    SystemCallFailed e("smash error: kill failed");
+                    throw e;
                     // להדפיס שגיאה שkill לא עבדה
                     //  perror("..kill...")
                 }
@@ -748,6 +791,8 @@ void KillCommand::execute()
             {
                 if (kill(pid, signal_num) == -1)
                 {
+                    SystemCallFailed e("smash error: kill failed");
+                    throw e;
                     // להדפיס שגיאה שkill לא עבדה
                     //  perror("..kill...")
                 }
@@ -760,6 +805,8 @@ void KillCommand::execute()
             {
                 if (kill(pid, signal_num) == -1)
                 {
+                    SystemCallFailed e("smash error: kill failed");
+                    throw e;
                     // להדפיס שגיאה שkill לא עבדה
                     //  perror("..kill...")
                 }
@@ -772,6 +819,8 @@ void KillCommand::execute()
             {
                 if (kill(pid, signal_num) == -1)
                 {
+                    SystemCallFailed e("smash error: kill failed");
+                    throw e;
                     // להדפיס שגיאה שkill לא עבדה
                     //  perror("..kill...")
                 }
@@ -780,8 +829,51 @@ void KillCommand::execute()
     }
     else
     {
+        InvaildArgument e("smash error: kill: invalid arguments");
+        throw e;
         // להדפיס שגיאה על ארגמונטים לא טובה
         // smash error: kill: invalid arguments
+    }
+}
+
+void SetcoreCommand::execute()
+{
+    if (args_vec.size() != 3)
+    {
+        InvaildArgument e("smash error: setcore: invalid arguments");
+        throw e;
+        // לזרוק שגיאה על ארגומנטים
+        // smash error: setcore: invalid arguments
+    }
+    int valid_arg1 = isStringNumber(args_vec[1]);
+    int valid_arg2 = isStringNumber(args_vec[2]);
+    if (valid_arg1 && valid_arg2)
+    {
+        int job_id = stoi(args_vec[1]);
+        int core_number = stoi(args_vec[2]);
+        JobsList::JobEntry *job = jobs->getJobById(job_id);
+        if (job == nullptr)
+        {
+            std::string str_error = "smash error: setcore: job-id " + job_id;
+            str_error += " does not exist";
+            JobIdDoesntExist e(str_error);
+            throw e;
+            // לזרוק שגיאה שלא קיים כזה עבודה
+            // smash error: setcore: job-id <job-id> does not exist
+        }
+        else
+        {
+            // לבדוק האם מספר ליבה טובה
+
+            // לשנות ליבה לעבודה
+        }
+    }
+    else
+    {
+        InvaildArgument e("smash error: setcore: invalid arguments");
+        throw e;
+        // לזרוק שגיאה על ארגומנטים
+        // smash error: setcore: invalid arguments
     }
 }
 
@@ -1003,6 +1095,10 @@ Command *SmallShell::CreateCommand(const char *cmd_line)
     else if (firstWord.compare("quit") == 0)
     {
         return new QuitCommand(cmd_line, this->jobs_list);
+    }
+    else if (firstWord.compare("kill") == 0)
+    {
+        return new KillCommand(cmd_line, this->jobs_list);
     }
     // להוסיף עוד
     else

@@ -128,7 +128,8 @@ private:
 
 public:
   // TODO: Add your data members public:
-  ChangeDirCommand(const char *cmd_line);
+  // ChangeDirCommand
+  ChangeDirCommand::ChangeDirCommand(const char *cmd_line) : BuiltInCommand::BuiltInCommand(cmd_line){};
   virtual ~ChangeDirCommand() {}
   void execute() override;
 };
@@ -273,8 +274,10 @@ public:
 class SetcoreCommand : public BuiltInCommand
 {
   // TODO: Add your data members
+  JobsList *jobs;
+
 public:
-  SetcoreCommand(const char *cmd_line) : BuiltInCommand::BuiltInCommand(cmd_line){};
+  SetcoreCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand::BuiltInCommand(cmd_line), jobs(jobs){};
   virtual ~SetcoreCommand() {}
   void execute() override;
 };
@@ -327,5 +330,11 @@ public:
   void removeJob(int job_id);
   void printPrompt() const;
 };
+
+// i need to diclare them in order to use them in signals.cpp
+bool isAppendRedirect(string cmd_str);
+bool isSterrPipe(string cmd_str);
+bool isRedirect(string cmd_str);
+bool isPipe(string cmd_str);
 
 #endif // SMASH_COMMAND_H_
