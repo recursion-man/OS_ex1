@@ -190,8 +190,10 @@ public:
 class ForegroundCommand : public BuiltInCommand
 {
   // TODO: Add your data members
+  JobsList *jobs;
+
 public:
-  ForegroundCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand::BuiltInCommand(cmd_line){};
+  ForegroundCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand::BuiltInCommand(cmd_line), jobs(jobs){};
   virtual ~ForegroundCommand() {}
   void execute() override;
 };
@@ -258,7 +260,7 @@ private:
   // TODO: Add your data members
   std::string prompt;
   std::string last_wd;
-  Command *current_process;
+  Command *current_command;
   JobsList *jobs_list;
 
   SmallShell();
@@ -280,12 +282,14 @@ public:
   // TODO: add extra methods as needed
   std::string get_last_wd() const;
   void set_last_wd(std::string);
+  void setCurrentCommand(Command *command);
+
+  Command *getCurrentCommand() const;
   void printPrompt() const;
   void changeChprompt(const char *cmd_line);
   void addJob(Command *cmd, bool is_stopped = false);
   void removeJob(int job_id);
   void printPrompt() const;
-  void setCurrentProcess(Command *cmd);
 };
 
 #endif // SMASH_COMMAND_H_
