@@ -144,17 +144,20 @@ Command::Command(const char *cmd_line) : job_id(-1), process_id(getpid()), cmd_l
     args_vec = get_args_in_vec(cmd_l);
 };
 
-RedirectionCommand::RedirectionCommand(const char *cmd_line) : Command::Command(cmd_line)
+RedirectionCommand::RedirectionCommand(const char *cmd_line, string sign) : Command::Command(cmd_line)
 {
     /// edge case: check if the last/fisrt arg is > or |
 
-    SmallShell &smash = SmallShell::getInstance();
-    string cmd_str = string(cmd_line);
-    int sign_index = cmd_str.find(">");
-    string base_cmd = cmd_str.substr(0, sign_index);
+    SmallShell & smash = SmallShell::getInstance();
+    string cmd_str = string (cmd_line);
+    int sign_index = cmd_str.find(sign);
+    if (sign_index == 0 || sign_index ==cmd_str.size()+1)
+    {} /// throw
+
+    string base_cmd = cmd_str.substr(0,sign_index);
 
     // a little messy... can be simpler
-    dest = get_args_in_vec(cmd_str.substr(sign_index + 1, cmd_str.size() + 1).c_str())[0];
+    dest = get_args_in_vec(cmd_str.substr(sign_index+1,cmd_str.size()+1).c_str())[0];
 
     base_command = smash.CreateCommand(base_cmd.c_str());
 
@@ -168,12 +171,21 @@ void RedirectionCommand::execute()
     cleanup();
 }
 
-void RedirectionCommand::prepare()
+void RedirectionNormalCommand::prepare()
 {
 
     int res_close = close(1);
     /// if (res_close == -1) {throw}
-    int res_open = open(dest.c_str(), O_CREAT | O_WRONLY | O_TRUNC S_IRWXU);
+    int res_open =  open(dest.c_str(), O_WRONLY|O_CREAT|O_TRUNC, S_IRWXU);
+    /// if (res_open ==-1) {throw}
+}
+
+void RedirectionAppendCommand::prepare()
+{
+
+    int res_close = close(1);
+    /// if (res_close == -1) {throw}
+    int res_open =  open(dest.c_str(), O_WRONLY | O_APPEND | O_CREAT, S_IRWXU);
     /// if (res_open ==-1) {throw}
 }
 
@@ -183,40 +195,110 @@ void RedirectionCommand::cleanup()
     /// if (res ==-1) --- {throw serious exception- smash output is wrong}
 }
 
-PipeCommand::PipeCommand(const char *cmd_line) : Command::Command(cmd_line)
+
+
+PipeCommand::PipeCommand(const char *cmd_line, string sign): Command::Command(cmd_line)
 {
-    SmallShell &smash = SmallShell::getInstance();
-    string cmd_str = string(cmd_line);
-    int sign_index = cmd_str.find("|");
-    string first_cmd = cmd_str.substr(0, sign_index - 1);
-    string second_cmd = cmd_str.substr(sign_index + 1, cmd_str.size() + 1);
+    SmallShell & smash = SmallShell::getInstance();
+    string cmd_str = string (cmd_line);
+    int sign_index = cmd_str.find(sign);
+    if (sign_index == 0 || sign_index ==cmd_str.size()+1)
+    {} /// throw
+    string first_cmd = cmd_str.substr(0,sign_index-1);
+    string second_cmd = cmd_str.substr(sign_index+1,cmd_str.size()+1);
     write_command = smash.CreateCommand(first_cmd.c_str());
     read_command = smash.CreateCommand(second_cmd.c_str());
     pipe(fd);
     standard_in_pd = dup(0);
     standard_out_pd = dup(1);
+    standard_error_pd = dup(2);
 }
 
-void PipeCommand::prepareWrite()
+void PipeCommand::prepareWrite(int out_pid_num)
 {
-    dup2(fd[1], 1);
+    dup2(fd[1],out_pid_num);
     close(fd[0]);
     close(fd[1]);
 }
 
-void PipeCommand::writeCleanUp()
+void PipeCommand::prepareRead(int in_pid_num)
 {
+    dup2(fd[0],in_pid_num);
+    close(fd[0]);
+    close(fd[1]);
 }
 
-void PipeCommand::execute()
+void PipeNormalCommand::execute()
 {
-
-    prepareWrite();
-    write_command->execute();
-
-    prepareRead();
-    read_command->execute();
+    PipeCommand::execute(1);
 }
+
+void PipeSterrCommand::execute()
+{
+    PipeCommand::execute(2);
+}
+
+void PipeCommand::execute(int pid_num)
+{
+//    // fork the read end
+    int pid1 = fork();
+    if (!pid1)
+    {
+        prepareRead(pid_num);
+        read_command->execute();
+    }
+
+    prepareWrite(pid_num);
+
+    // fork write end
+    if (write_command->isExternal()) {
+        int pid2 = fork();
+        if (!pid2) {
+            write_command->execute();
+        }
+    waitpid(pid2);
+    }
+
+    else
+        write_command->execute();
+
+    waitpid(pid1);
+
+    cleanUp();}
+
+void PipeCommand::cleanUp()
+{
+    int res1 = dup2(standard_in_pd, 0);
+    int res2 = dup2(standard_out_pd, 1);
+    int res3 = dup2(standard_error_pd, 2);
+    close(standard_out_pd);
+    close(standard_in_pd);
+    close(standard_error_pd);
+/// if (res1||res2 == -1, throw
+}
+
+//    {
+//        prepareWrite();
+//        write_command->execute();
+//    } else {
+//        write_command->execute(this, false);
+//    }
+//
+//    // read
+//    if (!read_command->isExternal())
+//    {
+//        prepareRead();
+//        read_command->execute();
+//    } else {
+//        read_command->execute(this, true);
+//    }
+//
+//    // reset the smash pd-table
+//    cleanup();
+
+
+
+
 
 //<---------------------------C'tors and D'tors - end--------------------------->
 
@@ -301,13 +383,36 @@ void SmallShell::executeCommand(const char *cmd_line)
     if (firstWord.compare("chprompt") == 0)
     {
         changeChprompt(cmd_line);
+
+    Command *cmd = CreateCommand(cmd_line);
+    if (!cmd->isExternal())
+    {
+        cmd->execute();
     }
     else
     {
-        Command *cmd = CreateCommand(cmd_line);
-        cmd->execute();
+        int pid = fork();
+        //--------------------- son -----------------------------//
+        if (pid == 0)
+        {
+            setpgrp();
+            cmd->execute();
+        }
+
+            //------------------------ father--------------------//
+        else
+        {
+            if (!(_isBackgroundCommand(cmd_line)))
+            {
+                current_command= (cmd);
+                waitpid(pid);
+                current_command = (nullptr);
+            }
+        }
+
     }
-}
+
+}}
 
 //    else if (isBuildInCommand(firstWord))
 //    {
@@ -332,11 +437,12 @@ void SmallShell::executeCommand(const char *cmd_line)
 //            }
 //        }
 
-// TODO: Add your implementation here
-// for example:
-// Command* cmd = CreateCommand(cmd_line);
-// cmd->execute();
-// Please note that you must fork smash process for some commands (e.g., external commands....)
+    // TODO: Add your implementation here
+    // for example:
+    // Command* cmd = CreateCommand(cmd_line);
+    // cmd->execute();
+    // Please note that you must fork smash process for some commands (e.g., external commands....)
+
 
 void ShowPidCommand::execute()
 {
@@ -407,40 +513,29 @@ void ChangeDirCommand::execute()
     is_finished = true;
 }
 
-void ExternalCommand::execute()
-{
+void ExternalCommand::execute() {
     SmallShell &smash = SmallShell::getInstance();
-    int pid = fork();
-    //--------------------- son -----------------------------//
-    if (pid == 0)
-    {
-        setpgrp();
+
         this->process_id = getpid();
-        if (_isBackgroundCommand(cmd_l))
-        {
+        if (_isBackgroundCommand(cmd_l)) {
             smash.addJob(this);
         }
         // להוסיף פה אחרת: ואז לעדכן את המצביע שsmash שמצביע על התהליך הנוכחי
 
-        if (_isSimpleExternal(cmd_l))
-        {
+        if (_isSimpleExternal(cmd_l)) {
             char **args = new char *[args_vec.size()];
             _parseCommandLine(cmd_l, args);
-            if (execv(args[0], args) == -1)
-            {
+            if (execv(args[0], args) == -1) {
                 smash.removeJob(this->job_id);
                 // ולזרוק שגיאה שפעולת מערכת לא הצליחה
             }
-        }
-        else
-        {
+        } else {
             // char **args= new char*[args_vec.size()];
             char *args[args_vec.size()];
             // creating an appropriate **args format for execv()
             _parseCommandLine(("-c " + string(cmd_l)).c_str(), args);
 
-            if (execv("/bin/bash", args) == -1)
-            {
+            if (execv("/bin/bash", args) == -1) {
                 smash.removeJob(this->job_id);
                 // ולזרוק שגיאה שפעולת מערכת לא הצליחה
             }
@@ -448,22 +543,11 @@ void ExternalCommand::execute()
         is_finished = true;
     }
 
-    //------------------------ father--------------------//
-    else
-    {
-        if (!(_isBackgroundCommand(cmd_l)))
-        {
-            smash.setCurrentCommand(this);
-            waitpid(pid);
-            smash.setCurrentCommand(nullptr);
-        }
-    }
-}
 
 void JobsCommand::execute()
 {
     jobs->removeFinishedJobs();
-    jobs->printJobsList();
+    jobs.printJobsList();
     is_finished = true;
 }
 
@@ -859,6 +943,15 @@ void JobsList::removeFinishedJobs()
  * Creates and returns a pointer to Command class which matches the given command line (cmd_line)
  */
 
+bool isAppendRedirect(string cmd_str)
+{
+    return cmd_str.find(">>") != string::npos;
+}
+bool isSterrPipe(string cmd_str)
+{
+    return cmd_str.find("|&") != string::npos;
+}
+
 bool isRedirect(string cmd_str)
 {
     return cmd_str.find(">") != string::npos;
@@ -868,6 +961,7 @@ bool isPipe(string cmd_str)
     return cmd_str.find("|") != string::npos;
 }
 
+
 Command *SmallShell::CreateCommand(const char *cmd_line)
 {
     // For example:
@@ -875,13 +969,21 @@ Command *SmallShell::CreateCommand(const char *cmd_line)
     string cmd_s = _trim(string(cmd_line));
     string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
 
+    if (isAppendRedirect(string(cmd_line)))
+    {
+        return new RedirectionAppendCommand(cmd_line);
+    }
+    else if (isSterrPipe(string(cmd_line)))
+    {
+        return new PipeSterrCommand(cmd_line);
+    }
     if (isRedirect(string(cmd_line)))
     {
-        return new RedirectionCommand(cmd_line);
+        return new RedirectionNormalCommand(cmd_line);
     }
     else if (isPipe(string(cmd_line)))
     {
-        return new PipeCommand(cmd_line);
+        return new PipeNormalCommand(cmd_line);
     }
     else if (firstWord.compare("pwd") == 0)
     {
