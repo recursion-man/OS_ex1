@@ -231,6 +231,7 @@ void PipeCommand::execute(int pid_num)
     int pid1 = fork();
     if (!pid1)
     {
+        setpgrp();
         prepareRead(pid_num);
         read_command->execute();
     }
@@ -243,6 +244,7 @@ void PipeCommand::execute(int pid_num)
         int pid2 = fork();
         if (!pid2)
         {
+            setpgrp();
             write_command->execute();
         }
         waitpid(pid2);
@@ -399,8 +401,8 @@ void SmallShell::executeCommand(const char *cmd_line)
                 this->addJob(cmd, false);
             }
         }
-    }
-}
+    }}
+
 
 //    else if (isBuildInCommand(firstWord))
 //    {
@@ -526,7 +528,14 @@ void ExternalCommand::execute()
     if (_isSimpleExternal(cmd_l))
     {
         char **args = new char *[args_vec.size()];
-        _parseCommandLine(cmd_l, args);
+
+        // delete & if case of background command
+        char string_without_ampercent[string(cmd_l).size() + 1];
+        strcpy(string_without_ampercent, cmd_l);
+        _removeBackgroundSign(string_without_ampercent);
+
+
+        _parseCommandLine(string_without_ampercent, args);
         if (execv(args[0], args) == -1)
         {
             smash.removeJob(this->job_id);
@@ -953,6 +962,39 @@ void GetFileTypeCommand::execute()
         break;
     }
     std::cout << path << "'s type is \"" << file_type << "\" and takes up " << file_size << " bytes" << std::endl;
+}
+
+// assume chmod takes up to 4 args
+bool isChmodArgsValid(const string args)
+{
+    int count = 0;
+    for (const char c: args)
+    {
+        count++;
+        int i = c - '0';
+        if (count > 4 || i > 7 || i < 0)
+            return false;
+    }
+    return true;
+    }
+
+void ChmodCommand::execute()
+{
+    if (args_vec.size() != 3 || !isChmodArgsValid(args_vec[1]))
+    {
+        InvaildArgument e("smash error: gettype: invalid arguments");
+        throw e;
+    }
+        {
+        int i;
+        i = strtol(args_vec[1].c_str(), 0, 8);
+        if (chmod (args_vec[2].c_str(),i) < 0)
+        {
+            SystemCallFailed e("smash error: chmod failed");
+            throw e;
+        }
+    }
+
 }
 //<--------------------------- execute functions - end--------------------------->
 

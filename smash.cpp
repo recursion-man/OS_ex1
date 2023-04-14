@@ -4,6 +4,7 @@
 #include <signal.h>
 #include "Commands.h"
 #include "signals.h"
+#include "Exeptions.h"
 
 int main(int argc, char *argv[])
 {
@@ -24,7 +25,10 @@ int main(int argc, char *argv[])
         smash.printPrompt();
         std::string cmd_line;
         std::getline(std::cin, cmd_line);
-        smash.executeCommand(cmd_line.c_str());
+        try {
+            smash.executeCommand(cmd_line.c_str());
+        } catch (std::exception& e)
+        { perror(e.what());}
     }
     return 0;
 }
