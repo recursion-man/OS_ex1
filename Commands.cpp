@@ -5,12 +5,14 @@
 #include <sstream>
 // #include <sched.h>
 // #include <sys/wait.h>
+// #include <sys/stat.h>
 #include <iomanip>
 #include "Commands.h"
 #include <signal.h>
 #include <sys/types.h>
 #include <memory>
 #include "./Exeptions.h"
+// #include <thread>
 
 #define SIGKILL 9
 using namespace std;
@@ -398,7 +400,6 @@ void SmallShell::executeCommand(const char *cmd_line)
             }
         }
     }
-}
 }
 
 //    else if (isBuildInCommand(firstWord))
@@ -863,9 +864,26 @@ void SetcoreCommand::execute()
         }
         else
         {
-            // לבדוק האם מספר ליבה טובה
+            int pid = job->getCommand()->getProcessId();
 
-            // לשנות ליבה לעבודה
+            // לבדוק האם מספר ליבה טובה
+            int cores_in_cpu = 100; // למצוא פונקציה שבודקת כמה ליבות יש במחשב // std::thread::hardware_concurrency();
+            if (cores_in_cpu < core_number || core_number < 0)
+            {
+                InvaildCoreNumber e("smash error: setcore: invalid core number");
+                throw e;
+                // לזרוק שגיאה שמספר ליבה לא נכון
+                // smash error: setcore: invalid core number
+            }
+            cpu_set_t set;
+            CPU_SET(core_number, &set);
+            if (sched_setaffinity(pid, sizeof(cpu_set_t), &set) == -1)
+            {
+                SystemCallFailed e("smash error: sched_setaffinity failed");
+                throw e;
+                // perror("smash error: sched_setaffinity failed");
+                // לזרוק חריגה שקראת מערכת נכשלה
+            }
         }
     }
     else
@@ -877,6 +895,65 @@ void SetcoreCommand::execute()
     }
 }
 
+void GetFileTypeCommand::execute()
+{
+    if (args_vec.size() != 2)
+    {
+        InvaildArgument e("smash error: gettype: invalid arguments");
+        throw e;
+        // לזרוק שגיאה על ארגומנטים
+
+        // smash error: gettype: invalid aruments
+    }
+    std::string path = args_vec[1];
+    struct stat stats;
+    if (stat(path.c_str(), &stats) == -1)
+    {
+        SystemCallFailed e("smash error: stat failed");
+        throw e;
+        // perror("smash error: stat failed");
+        // לזרוק חריגה שקראת מערכת נכשלה
+    }
+    int file_size = stats.st_size;
+    std::string file_type("");
+    switch (stats.st_mode & S_IFMT)
+    {
+    case S_IFBLK:
+        std::string tmp("block device");
+        file_type = tmp;
+        break;
+    case S_IFCHR:
+        std::string tmp("character device");
+        file_type = tmp;
+        break;
+    case S_IFDIR:
+        std::string tmp("directory");
+        file_type = tmp;
+        break;
+    case S_IFIFO:
+        std::string tmp("FIFO");
+        file_type = tmp;
+        break;
+    case S_IFLNK:
+        std::string tmp("symlink");
+        file_type = tmp;
+        break;
+    case S_IFREG:
+        std::string tmp("regular file");
+        file_type = tmp;
+        break;
+    case S_IFSOCK:
+        std::string tmp("socket");
+        file_type = tmp;
+        break;
+    default:
+        // אולי לזרוק חריגה שארגומנטים לא תקין?
+        std::string tmp("unknown");
+        file_type = tmp;
+        break;
+    }
+    std::cout << path << "'s type is \"" << file_type << "\" and takes up " << file_size << " bytes" << std::endl;
+}
 //<--------------------------- execute functions - end--------------------------->
 
 //<--------------------------- Jobs List functions--------------------------->
@@ -1092,15 +1169,26 @@ Command *SmallShell::CreateCommand(const char *cmd_line)
     {
         return new ForegroundCommand(cmd_line, this->jobs_list);
     }
-    else if (firstWord.compare("quit") == 0)
-    {
-        return new QuitCommand(cmd_line, this->jobs_list);
-    }
     else if (firstWord.compare("kill") == 0)
     {
         return new KillCommand(cmd_line, this->jobs_list);
     }
-    // להוסיף עוד
+    else if (firstWord.compare("quit") == 0)
+    {
+        return new QuitCommand(cmd_line, this->jobs_list);
+    }
+    else if (firstWord.compare("setcore") == 0)
+    {
+        return new SetcoreCommand(cmd_line, this->jobs_list);
+    }
+    else if (firstWord.compare("getfileinfo") == 0)
+    {
+        return new GetFileTypeCommand(cmd_line);
+    }
+    else if (firstWord.compare("chmod") == 0)
+    {
+        return new ChmodCommand(cmd_line);
+    }
     else
     {
         return new ExternalCommand(cmd_line);
