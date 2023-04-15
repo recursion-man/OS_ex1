@@ -4,6 +4,8 @@
 #include <vector>
 #include <ctime>
 #include <string>
+#include <list>
+#include <memory>
 
 #define COMMAND_ARGS_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
@@ -149,6 +151,19 @@ public:
   virtual ~ShowPidCommand() {}
   void execute() override;
 };
+class TimeoutCommand : public BuiltInCommand
+{
+    int dest_time;
+    Command* other_cmd;
+public:
+    explicit TimeoutCommand(const char *cmd_line);// : BuiltInCommand::BuiltInCommand(cmd_line)
+//    {
+//        if (args_vec.size()!=3)
+//        dest_time =
+//    };
+    virtual ~TimeoutCommand() {}
+    void execute() override;
+};
 
 class JobsList;
 class QuitCommand : public BuiltInCommand
@@ -160,6 +175,20 @@ public:
   virtual ~QuitCommand() {}
   void execute() override;
 };
+
+
+class TimeOutList
+{
+private:
+    int time_to_next;
+    TimeoutCommand* next_cmd;
+    std::list<std::shared_ptr<TimeoutCommand>> time_out_list;
+public:
+    void addToList(std::shared_ptr<TimeoutCommand>);
+    void removeNext();
+
+};
+
 
 class JobsList
 {
@@ -243,15 +272,7 @@ public:
   void execute() override;
 };
 
-class TimeoutCommand : public BuiltInCommand
-{
-  /* Bonus */
-  // TODO: Add your data members
-public:
-  explicit TimeoutCommand(const char *cmd_line) : BuiltInCommand::BuiltInCommand(cmd_line){};
-  virtual ~TimeoutCommand() {}
-  void execute() override;
-};
+
 
 class ChmodCommand : public BuiltInCommand
 {
@@ -304,8 +325,9 @@ private:
 
   SmallShell();
 
+
 public:
-  Command *CreateCommand(const char *cmd_line);
+  std::shared_ptr<Command> CreateCommand(const char *cmd_line);
   SmallShell(SmallShell const &) = delete;     // disable copy ctor
   void operator=(SmallShell const &) = delete; // disable = operator
   static SmallShell &getInstance()             // make SmallShell singleton
@@ -328,7 +350,7 @@ public:
   void changeChprompt(const char *cmd_line);
   void addJob(Command *cmd, bool is_stopped = false);
   void removeJob(int job_id);
-  void printPrompt() const;
+
 };
 
 // i need to diclare them in order to use them in signals.cpp
