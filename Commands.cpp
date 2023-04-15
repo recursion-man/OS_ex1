@@ -336,7 +336,7 @@ int JobsList::JobEntry::getJobId() const
 
 Command *JobsList::JobEntry::getCommand() const
 {
-    return command;
+    return command.get();
 };
 
 Command *SmallShell::getCurrentCommand() const
@@ -386,15 +386,16 @@ void SmallShell::executeCommand(const char *cmd_line)
         changeChprompt(cmd_line);
         return;
     }
-    Command *cmd = CreateCommand(cmd_line).get();
+    shared_ptr<Command> cmd = CreateCommand(cmd_line);
     if (!cmd->isExternal())
     {
         cmd->execute();
     }
     else
     {
+        cmd->setShared(cmd);
         int pid = fork();
-        //--------------------- son -----------------------------//
+        //--------------------- child -----------------------------//
         if (pid == 0)
         {
             if (setpgrp() == -1)
@@ -402,6 +403,7 @@ void SmallShell::executeCommand(const char *cmd_line)
                 SystemCallFailed e("setpgrp");
                 throw e;
             }
+            cmd->setProcessId(getpid());
             cmd->execute();
         }
 
@@ -410,14 +412,16 @@ void SmallShell::executeCommand(const char *cmd_line)
         {
             if (!(_isBackgroundCommand(cmd_line)))
             {
-                current_command = (cmd);
+                current_command = (cmd.get());
                 waitpid(pid);
                 current_command = (nullptr);
             }
-            else
-            {
-                this->addJob(cmd, false);
-            }
+
+            //// נראלי שכבר הכנסנו בתור execute את הjob..../
+//            else
+//            {
+//                this->addJob(cmd, false);
+//            }
         }
     }}
 
@@ -488,7 +492,7 @@ void ChangeDirCommand::execute()
         // if the last working directory doesn't exist
         if (smash.get_last_wd().empty())
         {
-            OldPWDNotSet e("smash error: cd: OLDPWD not set");
+            OldPWDNotSet e;
             throw e;
             // לזרוק שגיאה שתיקיה אחרונה חוקית עוד לא הייתה
         }
@@ -534,7 +538,7 @@ void ExternalCommand::execute()
 
     if (_isBackgroundCommand(cmd_l))
     {
-        smash.addJob(this);
+        smash.addJob(shared_instance);
         removeBackgroundSignString(args_vec.back().c_str());
     }
     else
@@ -641,7 +645,7 @@ void BackgroundCommand::execute()
             }
             else
             {
-                NoStoppedJobs e("smash error: bg: there is no stopped jobs to resume");
+                NoStoppedJobs e;
                 throw e;
                 // לזרוק שגיאה שלא קיימת עבודה שנעצרה:
                 //  smash error: bg: there is no stopped jobs to resume
@@ -655,7 +659,7 @@ void activateCommand(int job_id, JobsList *jobs)
     JobsList::JobEntry *job_to_cont = job_id == 0 ? jobs->getLastJob(nullptr) : jobs->getJobById(job_id);
     if (job_to_cont == nullptr)
     {
-        JobsListEmpty e("smash error: fg: jobs list is empty");
+        JobsListEmpty e;
         throw e;
         // לזרוק שגיאה שהרשימת עבודות ריקה
         // smash error: fg: jobs list is empty
@@ -1020,7 +1024,7 @@ int JobsList::getMaxId() const
     return max_id;
 }
 
-void JobsList::addJob(Command *command, bool isStopped = false)
+void JobsList::addJob(shared_ptr<Command> command, bool isStopped = false)
 {
     this->removeFinishedJobs();
     if (command->getJobId() == -1)
@@ -1029,7 +1033,8 @@ void JobsList::addJob(Command *command, bool isStopped = false)
         int job_id = getMaxId() + 1;
         command->setJobId(job_id);
         std::shared_ptr<JobEntry> new_job(new JobEntry(command, isStopped));
-        jobs.push_back(new_job);
+    jobs.push_back(new_job);
+
     }
     else
     {
@@ -1250,7 +1255,7 @@ void SmallShell::printPrompt() const
     std::cout << prompt << " " << std::endl;
 }
 
-void SmallShell::addJob(Command *cmd, bool is_stopped)
+void SmallShell::addJob(shared_ptr<Command> cmd, bool is_stopped)
 {
     jobs_list->addJob(cmd, is_stopped);
 };
@@ -1283,20 +1288,114 @@ bool isBuildInCommand(string firstWord)
 
 //// bonus
 
-TimeoutCommand::TimeoutCommand(const char *cmd_line) : BuiltInCommand::BuiltInCommand(cmd_line)
+void SmallShell::addTimeOutCommand(std::shared_ptr<TimeoutCommand> cmd)
 {
-    SmallShell& smash = SmallShell::getInstance();
+        timeOutList->addToList(cmd);
+}
+
+void SmallShell::handleAlarm()
+{
+    timeOutList->handleSignal();
+}
+
+TimeoutCommand::TimeoutCommand(const char *cmd_line) : BuiltInCommand::BuiltInCommand(cmd_line) {
+    SmallShell &smash = SmallShell::getInstance();
     string target_cmd_str = "";
-    for (int i=2; i<args_vec.size();i++)
+    for (int i = 2; i < args_vec.size(); i++)
         target_cmd_str += args_vec[i];
 
-    other_cmd = smash.CreateCommand(target_cmd_str.c_str()).get();
-    if (!isStringNumber(args_vec[1]))
-    {
-        InvaildArgument e();
+    target_cmd = smash.CreateCommand(target_cmd_str.c_str());
+    if (!isStringNumber(args_vec[1])) {
+        InvaildArgument e("timeout");
         throw e;
     }
     int time_to_alarm = stoi(args_vec[1]);
-    dest_time = time(nullptr)+time_to_alarm;
-
+    dest_time = time(nullptr) + time_to_alarm;
+    m_pid = -1;
 };
+
+void TimeoutCommand::execute()
+{
+    SmallShell& smash = SmallShell::getInstance();
+
+   // we assume all the commands are External, because a built-in command will end very quick - since it runs at the front
+    if (!target_cmd->isExternal())
+        throw std::runtime_error("got Built-in Command in Timeout!!");
+
+    int pid = fork();
+
+    // ------------------------------child-------------------------//
+        if (!pid) {
+            // we need to store the pid of the child in the list
+            setProcessId(getpid());
+            smash.addTimeOutCommand(dynamic_pointer_cast<TimeoutCommand>(shared_instance));
+            target_cmd->execute();
+        }
+
+            //------------------------ father--------------------//
+        else
+        {
+            if (!(_isBackgroundCommand(target_cmd->getCmdL())))
+            {
+                smash.setCurrentCommand(target_cmd.get());
+                waitpid(pid);
+                smash.setCurrentCommand(nullptr);
+            }}
+
+
+}
+
+void TimeOutList::removeNext()
+{
+    time_out_list.pop_front();
+    if (time_out_list.empty())
+        return;
+    next_cmd = time_out_list.front().get();
+    makeAlarm();
+}
+
+void TimeOutList::makeAlarm()
+{
+    int cmd_time = next_cmd->getTime();
+    time_to_next = cmd_time - time(nullptr);
+    alarm(time_to_next);
+}
+void TimeOutList::handleSignal()
+{
+    int target_pid = next_cmd->getProcessId();
+
+//    // check if the command already stopped before killing it
+//    int res = waitpid(target_pid, nullptr, WNOHANG);
+
+    if (target_pid != getpid())
+    {
+        //
+        if (kill(target_pid, SIGKILL) == -1)
+        {
+            // לזרוק שגיאה שkill לא עבדה
+            // perror("...kill...");
+        }
+        std::cout << "smash: " + string(next_cmd->getCmdL()) + " timed out!" << std::endl;
+    }
+    removeNext();
+
+
+}
+void TimeOutList::addToList(std::shared_ptr<TimeoutCommand> new_cmd)
+{
+    int new_cmd_time = new_cmd->getTime();
+    if ( new_cmd_time < time_to_next + time(nullptr))
+    {
+        next_cmd = new_cmd.get();
+        makeAlarm();
+    }
+    for (auto it = time_out_list.begin(); it != time_out_list.end(); it++)
+    {
+        if ((*it)->getTime() > new_cmd_time)
+        {
+            time_out_list.insert(it, new_cmd);
+            return;
+        }
+    }
+    time_out_list.push_back(new_cmd);
+}

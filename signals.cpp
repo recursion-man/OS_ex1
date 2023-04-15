@@ -61,7 +61,17 @@ void ctrlZHandler(int sig_num)
   }
 }
 
+
+
+///-------------------------bonus start---------------------------------------
 void alarmHandler(int sig_num)
 {
-  // TODO: Add your implementation
+    SmallShell &smash = SmallShell::getInstance();
+    smash.handleAlarm();
+
 }
+
+///------------------------bonus end---------------------------------------
+
+
+

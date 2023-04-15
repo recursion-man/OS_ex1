@@ -6,6 +6,16 @@
 #include "signals.h"
 #include "Exeptions.h"
 
+
+extern char *strsignal(int sig);
+
+
+
+
+
+
+
+
 int main(int argc, char *argv[])
 {
     if (signal(SIGTSTP, ctrlZHandler) == SIG_ERR)
@@ -16,6 +26,13 @@ int main(int argc, char *argv[])
     {
         perror("smash error: failed to set ctrl-C handler");
     }
+
+    struct sigaction new_action;
+    action.sa_handler = &alarmHandler;
+    action.sa_flags = SA_RESTART;
+    if (sigaction(SIGALRM, &new_action, NULL) < 0 )
+        perror("smash error: failed to set alarm");
+
 
     // TODO: setup sig alarm handler
 

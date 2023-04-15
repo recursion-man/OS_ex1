@@ -19,6 +19,7 @@ protected:
   const char *cmd_l;
   bool external;
   std::vector<std::string> args_vec;
+  std::shared_ptr<Command> shared_instance;
 
 public:
   Command(const char *cmd_line);
@@ -27,6 +28,8 @@ public:
   //  virtual void preparePd(Command*,bool);
   // virtual void cleanup();
   bool isExternal() { return external; }
+  void setShared(std::shared_ptr<Command>);
+  std::shared_ptr<Command> getShared();
 
   // getters
   const char *getCmdL() const;
@@ -49,6 +52,7 @@ public:
 
 class ExternalCommand : public Command
 {
+
 public:
   ExternalCommand(const char *cmd_line) : Command::Command(cmd_line) { external = true; }
   virtual ~ExternalCommand() {}
@@ -151,19 +155,7 @@ public:
   virtual ~ShowPidCommand() {}
   void execute() override;
 };
-class TimeoutCommand : public BuiltInCommand
-{
-    int dest_time;
-    Command* other_cmd;
-public:
-    explicit TimeoutCommand(const char *cmd_line);// : BuiltInCommand::BuiltInCommand(cmd_line)
-//    {
-//        if (args_vec.size()!=3)
-//        dest_time =
-//    };
-    virtual ~TimeoutCommand() {}
-    void execute() override;
-};
+
 
 class JobsList;
 class QuitCommand : public BuiltInCommand
@@ -177,31 +169,18 @@ public:
 };
 
 
-class TimeOutList
-{
-private:
-    int time_to_next;
-    TimeoutCommand* next_cmd;
-    std::list<std::shared_ptr<TimeoutCommand>> time_out_list;
-public:
-    void addToList(std::shared_ptr<TimeoutCommand>);
-    void removeNext();
-
-};
-
-
 class JobsList
 {
 public:
   class JobEntry
   {
   private:
-    Command *command;
+    std::shared_ptr<Command> command;
     int init_time;
     bool is_stopped;
 
   public:
-    JobEntry(Command *command, bool is_stopped) : command(command), init_time(time(NULL)), is_stopped(is_stopped){};
+    JobEntry(std::shared_ptr<Command> command, bool is_stopped) : command(command), init_time(time(NULL)), is_stopped(is_stopped){};
     ~JobEntry() = default;
 
     //  getters
@@ -232,7 +211,7 @@ public:
   int getMaxId() const;
 
   //  aux
-  void addJob(Command *cmd, bool isStopped = false);
+  void addJob(std::shared_ptr<Command> cmd, bool isStopped = false);
   void removeJobById(int jobId);
   void printJobsList();
   void killAllJobs();
@@ -314,6 +293,39 @@ public:
   void execute() override;
 };
 
+
+///------------------------------------- Bonus start---------------------------------------------
+
+
+class TimeoutCommand : public BuiltInCommand
+{
+    int dest_time;
+    int m_pid;
+    std::shared_ptr<Command> target_cmd;
+public:
+    explicit TimeoutCommand(const char *cmd_line);
+    virtual ~TimeoutCommand() {}
+    void execute() override;
+    int getTime() const;
+};
+
+class TimeOutList
+{
+private:
+    int time_to_next;
+    TimeoutCommand* next_cmd;
+    std::list<std::shared_ptr<TimeoutCommand>> time_out_list;
+public:
+    void addToList(std::shared_ptr<TimeoutCommand>);
+    void removeNext();
+    void makeAlarm();
+    void handleSignal();
+};
+
+
+
+/// ---------------------------------------Bonus end-----------------------------------------
+
 class SmallShell
 {
 private:
@@ -322,6 +334,7 @@ private:
   std::string last_wd;
   Command *current_command;
   JobsList *jobs_list;
+  TimeOutList* timeOutList;
 
   SmallShell();
 
@@ -348,15 +361,21 @@ public:
   Command *getCurrentCommand() const;
   void printPrompt() const;
   void changeChprompt(const char *cmd_line);
-  void addJob(Command *cmd, bool is_stopped = false);
+
+  void addJob(std::shared_ptr<Command> cmd, bool is_stopped = false);
+  void addTimeOutCommand(std::shared_ptr<TimeoutCommand>);
+
+  void handleAlarm();
+
   void removeJob(int job_id);
 
 };
 
-// i need to diclare them in order to use them in signals.cpp
-bool isAppendRedirect(string cmd_str);
-bool isSterrPipe(string cmd_str);
-bool isRedirect(string cmd_str);
-bool isPipe(string cmd_str);
+// declaration for signals.cpp
+bool isAppendRedirect(std::string cmd_str);
+bool isSterrPipe(std::string cmd_str);
+bool isRedirect(std::string cmd_str);
+bool isPipe(std::string cmd_str);
 
 #endif // SMASH_COMMAND_H_
+
