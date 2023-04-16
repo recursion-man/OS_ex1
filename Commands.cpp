@@ -31,15 +31,7 @@ const std::string WHITESPACE = " \n\r\t\f\v";
 #define FUNC_ENTRY()
 #define FUNC_EXIT()
 #endif
-bool isStringNumber(std::string str)
-{
-    for (int i = 0; i < str.size(); i++)
-    {
-        if (!isdigit(str[i]))
-            return false;
-    }
-    return true;
-}
+
 string _ltrim(const std::string &s)
 {
     size_t start = s.find_first_not_of(WHITESPACE);
@@ -57,12 +49,11 @@ string _trim(const std::string &s)
     return _rtrim(_ltrim(s));
 }
 
-
 void _reformatArgsVec(char **args, vector<string> vec)
 {
-    for (int i = 0; i< vec.size(); i++)
+    for (int i = 0; i < vec.size(); i++)
     {
-        args[i] = new char[vec[i].size()+1];
+        args[i] = new char[vec[i].size() + 1];
         memset(args[i], 0, vec[i].size() + 1);
         strcpy(args[i], vec[i].c_str());
     }
@@ -135,6 +126,17 @@ bool _isSimpleExternal(std::string str)
     return str.find_first_of("*?") == std::string::npos;
 }
 
+// Checks if a given string is made of digits only
+bool isStringNumber(std::string str)
+{
+    for (int i = 0; i < str.size(); i++)
+    {
+        if (!isdigit(str[i]))
+            return false;
+    }
+    return true;
+}
+
 //<---------------------------C'tors and D'tors--------------------------->
 
 // Small Shell
@@ -184,10 +186,10 @@ void RedirectionCommand::execute()
         // notice we assume the cmd isn't running in the BackGround and won't get interrupted
         if (!pid)
         {
-         int res = setpgrp();
-         if (res <0)
-             perror("smash error: setpgrp failed");
-         base_command->execute();
+            int res = setpgrp();
+            if (res < 0)
+                perror("smash error: setpgrp failed");
+            base_command->execute();
         }
 
         // ------------father----------//
@@ -207,19 +209,20 @@ void RedirectionCommand::execute()
     cleanup();
 }
 
-
 /// TO-DO: better Polymorphism with prepare()
 void RedirectionNormalCommand::prepare()
 {
     // replacing stdout with dest
     int res_close = close(1);
-    if (res_close < 0) {
+    if (res_close < 0)
+    {
         SystemCallFailed e("close");
         throw e;
     }
     // permissions
     int res_open = open(dest.c_str(), O_WRONLY | O_CREAT | O_TRUNC, S_IRWXU);
-    if (res_open < 0) {
+    if (res_open < 0)
+    {
         SystemCallFailed e("open");
         throw e;
     }
@@ -229,12 +232,14 @@ void RedirectionNormalCommand::prepare()
 void RedirectionAppendCommand::prepare()
 {
     int res_close = close(1);
-    if (res_close < 0) {
+    if (res_close < 0)
+    {
         SystemCallFailed e("close");
         throw e;
     }
     int res_open = open(dest.c_str(), O_WRONLY | O_APPEND | O_CREAT, S_IRWXU);
-    if (res_open < 0) {
+    if (res_open < 0)
+    {
         SystemCallFailed e("open");
         throw e;
     }
@@ -243,21 +248,20 @@ void RedirectionAppendCommand::prepare()
 void RedirectionCommand::cleanup()
 {
     int res = dup2(out_pd, 1);
-    if (res < 0) {
+    if (res < 0)
+    {
         SystemCallFailed e("close");
         throw e;
     }
 
     // closing the new pd so the FDT won't get full
-     res = close(out_pd);
-    if (res < 0) {
+    res = close(out_pd);
+    if (res < 0)
+    {
         SystemCallFailed e("close");
         throw e;
-}}
-
-
-
-
+    }
+}
 
 PipeCommand::PipeCommand(const char *cmd_line, string sign) : Command::Command(cmd_line)
 {
@@ -350,7 +354,6 @@ void PipeCommand::cleanUp()
     /// if (res1||res2 == -1, throw
 }
 
-
 //<---------------------------C'tors and D'tors - end--------------------------->
 
 //<---------------------------getters--------------------------->
@@ -409,7 +412,7 @@ void JobsList::JobEntry::setTime()
 
 void JobsList::JobEntry::setStopped(bool is_stopped)
 {
-    is_stopped = is_stopped;
+    this->is_stopped = is_stopped;
 };
 
 void SmallShell::setCurrentCommand(shared_ptr<Command> command)
@@ -472,14 +475,14 @@ void SmallShell::executeCommand(const char *cmd_line)
                 current_command = (nullptr);
             }
 
-// add background Command to Joblist
-             else
+            // add background Command to Joblist
+            else
             {
                 this->addJob(cmd, false);
             }
         }
-    }}
-
+    }
+}
 
 //    else if (isBuildInCommand(firstWord))
 //    {
@@ -519,6 +522,8 @@ void ShowPidCommand::execute()
 void GetCurrDirCommand::execute()
 {
     char cwd[256];
+
+    // get the current working directory
     if (getcwd(cwd, sizeof(cwd)) != NULL)
     {
         std::cout << cwd << std::endl;
@@ -527,8 +532,6 @@ void GetCurrDirCommand::execute()
     {
         SystemCallFailed e("getcwd");
         throw e;
-        // perror("smash error: getcwd failed");
-        // לזרוק חריגה שקראת מערכת נכשלה
     }
 }
 
@@ -536,20 +539,22 @@ void ChangeDirCommand::execute()
 {
     SmallShell &smash = SmallShell::getInstance();
     std::string new_dir;
+
+    //  Check amount of arguments
     if (args_vec.size() != 2)
     {
         TooManyArguments e("cd");
         throw e;
-        // לזרוק שגיאה שאין ארגונטים
     }
+
+    //  Check if going to last working directory or a new one
     if (args_vec[1] == "-")
     {
-        // if the last working directory doesn't exist
+        //  if the last working directory doesn't exist
         if (smash.get_last_wd().empty())
         {
             OldPWDNotSet e;
             throw e;
-            // לזרוק שגיאה שתיקיה אחרונה חוקית עוד לא הייתה
         }
         else
         {
@@ -561,28 +566,24 @@ void ChangeDirCommand::execute()
         new_dir = args_vec[1];
     }
 
+    //  Save current directory
     char buffer[256];
     if (getcwd(buffer, sizeof(buffer)) == NULL)
     {
         SystemCallFailed e("getcwd");
         throw e;
-
-        // perror("smash error: getcwd failed");
-        // לזרוק חריגה שקריאת מערכת נכשלה
     }
 
+    //  Change directory
     int res = chdir(new_dir.c_str());
-    // if change fails
     if (res == -1)
     {
         SystemCallFailed e("chdir");
         throw e;
-        // perror("smash error: chdir failed");
-        // לזרוק חריגה שקריאת מערכת נכשלה
     }
-    // if change succeeds
     else
     {
+        //  Save last working directory
         smash.set_last_wd(string(buffer));
     }
 }
@@ -603,35 +604,37 @@ void ExternalCommand::execute()
     else
     {
         args_vec.insert(args_vec.begin(), "/bin/bash");
-        args_vec.insert(args_vec.begin()+1, "-c");
+        args_vec.insert(args_vec.begin() + 1, "-c");
     }
 
     // reforming args_vec
-    char **args = new char *[args_vec.size()+1];
+    char **args = new char *[args_vec.size() + 1];
     _reformatArgsVec(args, args_vec);
 
     // executing Command
-    if (execv(args[0], args) == -1) {
+    if (execv(args[0], args) == -1)
+    {
         perror("smash error: execv failed");
         exit(1);
     }
 
-// ---------------- validity check is in the father responsibility: in SmallShell::executeCommand-----//
+    // ---------------- validity check is in the father responsibility: in SmallShell::executeCommand-----//
 
-//    if (execv(args[0], args) == -1)
-//    {
-//        smash.removeJob(this->job_id);
-//        smash.setCurrentCommand(nullptr);
-//        SystemCallFailed e("exec");
-//        throw e;
-//    }
-
-
+    //    if (execv(args[0], args) == -1)
+    //    {
+    //        smash.removeJob(this->job_id);
+    //        smash.setCurrentCommand(nullptr);
+    //        SystemCallFailed e("exec");
+    //        throw e;
+    //    }
 }
 
 void JobsCommand::execute()
 {
+    //  Remove finised jobs
     jobs->removeFinishedJobs();
+
+    //  Print jobs list
     jobs->printJobsList();
 }
 
@@ -642,118 +645,157 @@ void BackgroundCommand::execute()
         InvaildArgument e("bg");
         throw e;
     }
-    else if (args_vec.size() == 2)
-    {
-        if (this->jobs != nullptr)
-        {
-            int job_id_to_find;
-            if (isStringNumber(args_vec[1]))
-            {
 
-                job_id_to_find = stoi(args_vec[1]);
-            }
-            else
-            {
-                InvaildArgument e("bg");
-                throw e;
-                // לזרוק שגיאה שהפורמט ארגומנטים לא מתאים
-                // smash error: bg: invalid arguments
-            }
-
-            JobsList::JobEntry *job = this->jobs->getJobById(job_id_to_find);
-            if (job != nullptr)
-            {
-                if (job->getStopped())
-                {
-                    int pid = job->getCommand()->getProcessId();
-                    job->setStopped(false);
-                    std::cout << job->getCommand()->getCmdL() << std::endl;
-                    kill(pid, SIGCONT);
-                }
-                else
-                {
-                    JobAlreadyRunning e(job_id_to_find);
-                    throw e;
-                    // להדפיס שגיאה שהעבודה הזאת כבר רצה ברקע
-                    // smash error: bg: job-id <job-id> is already running in the background
-                }
-            }
-            else
-            {
-                JobIdDoesntExist e("bg", job_id_to_find);
-                throw e;
-                // לזרוק שגיאה שלא קיימת כזאת עבודה:
-                //  smash error: bg: job-id <job-id> does not exist
-            }
-        }
-    }
-    else
-    {
-        if (this->jobs != nullptr)
-        {
-            JobsList::JobEntry *job = this->jobs->getLastStoppedJob(nullptr);
-            if (job != nullptr)
-            {
-                int pid = job->getCommand()->getProcessId();
-                job->setStopped(false);
-                kill(pid, SIGCONT);
-            }
-            else
-            {
-                NoStoppedJobs e;
-                throw e;
-                // לזרוק שגיאה שלא קיימת עבודה שנעצרה:
-                //  smash error: bg: there is no stopped jobs to resume
-            }
-        }
-    }
-}
-
-void activateCommand(int job_id, JobsList *jobs)
-{
-    JobsList::JobEntry *job_to_cont = job_id == 0 ? jobs->getLastJob(nullptr) : jobs->getJobById(job_id);
-    if (job_to_cont == nullptr)
-    {
-        JobsListEmpty e;
-        throw e;
-    }
-    else
-    {
-        std::cout << job_to_cont->getCommand()->getCmdL() << std::endl;
-        int pid = job_to_cont->getCommand()->getProcessId();
-        if (kill(pid, SIGCONT) == -1)
-        {
-            SystemCallFailed e("kill");
-            throw e;
-        }
-        job_to_cont->setStopped(false);
-        SmallShell &smash = SmallShell::getInstance();
-        smash.setCurrentCommand(job_to_cont->getCommand());
-        int *status;
-        waitpid(pid, status);
-        smash.setCurrentCommand(nullptr);
-    }
-}
-
-void ForegroundCommand::execute()
-{
-    if (args_vec.size() == 1)
-    {
-        activateCommand(0, jobs);
-    }
-    else if (args_vec.size() == 2)
+    // if a specific job was given
+    if (args_vec.size() == 2)
     {
         int job_id_to_find;
+
+        //  checking if valid argument(a number)
         if (isStringNumber(args_vec[1]))
         {
-
             job_id_to_find = stoi(args_vec[1]);
         }
         else
         {
             InvaildArgument e("bg");
             throw e;
+        }
 
+        //  getting the job from the list - if doesn't exist, a nullptr will return
+        // Note: should we make sure jobs pointer was set currectly(isn't nullptr)?
+        JobsList::JobEntry *job = this->jobs->getJobById(job_id_to_find);
+        if (job != nullptr)
+        {
+            if (job->getStopped())
+            {
+
+                int pid = job->getCommand()->getProcessId();
+
+                //  updating the command's status
+                job->setStopped(false);
+
+                //  printig the cmd_line of the command
+                std::cout << job->getCommand()->getCmdL() << std::endl;
+
+                // continue cammand without wating for it
+                if (kill(pid, SIGCONT) == -1)
+                {
+                    SystemCallFailed e("kill");
+                    throw e;
+                }
+            }
+            else
+            {
+                JobAlreadyRunning e(job_id_to_find);
+                throw e;
+            }
+        }
+        else
+        {
+            JobIdDoesntExist e("bg", job_id_to_find);
+            throw e;
+        }
+    }
+    //  if no specific job was given
+    else
+    {
+        JobsList::JobEntry *job = this->jobs->getLastStoppedJob(nullptr);
+        if (job != nullptr)
+        {
+            int pid = job->getCommand()->getProcessId();
+
+            //  updating the command's status
+            job->setStopped(false);
+
+            //  printig the cmd_line of the command
+            std::cout << job->getCommand()->getCmdL() << std::endl;
+
+            // continue cammand without wating for it
+            if (kill(pid, SIGCONT) == -1)
+            {
+                SystemCallFailed e("kill");
+                throw e;
+            }
+        }
+        else
+        {
+            NoStoppedJobs e;
+            throw e;
+        }
+    }
+}
+
+/*
+The function brings the job required to the foreground
+input:
+    job_id - the id of the job we need to continue - if it's 0, bring the last job in the jobs list to the foreground
+    jobs - pointer to the jobs list variable in the smash
+
+*/
+void bringCommandToForegound(int job_id, JobsList *jobs)
+{
+    //  get the job required - if the job_id doesn't exist, nullptr will be returned
+    JobsList::JobEntry *job_to_cont = job_id == 0 ? jobs->getLastJob(nullptr) : jobs->getJobById(job_id);
+
+    //
+    if (job_to_cont != nullptr)
+    {
+        //  print the cmd_line of the command
+        std::cout << job_to_cont->getCommand()->getCmdL() << std::endl;
+
+        int pid = job_to_cont->getCommand()->getProcessId();
+
+        //  send a continue signal to the process
+        if (kill(pid, SIGCONT) == -1)
+        {
+            SystemCallFailed e("kill");
+            throw e;
+        }
+
+        //  update the job's status
+        job_to_cont->setStopped(false);
+
+        //  save current command running in the foreground
+        SmallShell &smash = SmallShell::getInstance();
+        smash.setCurrentCommand(job_to_cont->getCommand());
+
+        //  wait for process to finish
+        int *status;
+        waitpid(pid, status);
+
+        //  delete current process from current command
+        smash.setCurrentCommand(nullptr);
+    }
+    else
+    {
+        JobsListEmpty e;
+        throw e;
+    }
+}
+
+void ForegroundCommand::execute()
+{
+    //  no specific job required
+    if (args_vec.size() == 1)
+    {
+        bringCommandToForegound(0, jobs);
+    }
+
+    //    specific job required
+    else if (args_vec.size() == 2)
+    {
+        int job_id_to_find;
+
+        // check if valid
+        if (isStringNumber(args_vec[1]))
+        {
+            job_id_to_find = stoi(args_vec[1]);
+        }
+        else
+        {
+            InvaildArgument e("bg");
+            throw e;
         }
         if (job_id_to_find <= 0)
         {
@@ -762,7 +804,7 @@ void ForegroundCommand::execute()
         }
         else
         {
-            activateCommand(job_id_to_find, jobs);
+            bringCommandToForegound(job_id_to_find, jobs);
         }
     }
     else
@@ -776,6 +818,8 @@ void QuitCommand::execute()
 {
     bool flag_kill = false;
     std::vector<std::string> args = get_args_in_vec(this->cmd_l);
+
+    //  check if 'kill' was given as an argument
     for (int i = 1; i < args.size(); i++)
     {
         if (args[i] == "kill")
@@ -784,6 +828,8 @@ void QuitCommand::execute()
             break;
         }
     }
+
+    //  kill all jobs in the jobs list
     if (flag_kill)
     {
         jobs->killAllJobs();
@@ -791,14 +837,22 @@ void QuitCommand::execute()
     exit(0);
 }
 
-// checks if the first char is '-' and if the string given is a number -and returns it. if Not - return -1.
+/* checks :
+    -if the first char is '-'
+    -if the string given is a number
+    returns: the number if the string was given correctly. if Not, returns -1.
+*/
 int getSignalNumber(std::string str)
 {
     if (str[0] != '-')
     {
         return -1;
     }
+
+    //  remove the '-' from the string
     str.erase(0, 1);
+
+    //  convert to integer
     int num;
     if (isStringNumber(str))
     {
@@ -810,79 +864,84 @@ int getSignalNumber(std::string str)
 
 void KillCommand::execute()
 {
+    //  check amount of arguments
     if (args_vec.size() != 3)
     {
         InvaildArgument e("kill");
         throw e;
-        // להדפיס שגיאה על ארגמונטים לא טובה
-        // smash error: kill: invalid arguments
     }
+
+    //  get the number of the signal
     int signal_num = getSignalNumber(args_vec[1]); // return -1 if the format is wrong
+
+    //  check if number is in range
     if (signal_num > 0 && signal_num < 32)
     {
 
+        //  get the job - if does not exist, nullptr will be returned
         JobsList::JobEntry *job = jobs->getJobById(job_id);
         if (job == nullptr)
         {
             JobIdDoesntExist e("kill", job_id);
             throw e;
-            // לזרוק שגיאה שעבודה לא קיימת
-            // smash error: kill: job-id <job-id> does not exist
         }
         else
         {
-
             int pid = job->getCommand()->getProcessId();
-            if (signal_num == 9 || signal_num == 15 || signal_num == 6) // סיגנלים של להרוג
+
+            //  Note : to check if there are more signal numbers that fit
+            //  kill signals
+            if (signal_num == 9 || signal_num == 15 || signal_num == 6)
             {
                 if (kill(pid, signal_num) == -1)
                 {
                     SystemCallFailed e("kill");
                     throw e;
-                    // להדפיס שגיאה שkill לא עבדה
-                    //  perror("..kill...")
                 }
                 else
                 {
+                    //  remove the job from the jobs list for good
                     jobs->removeJobById(job->getJobId());
                 }
             }
-            else if (signal_num == 2 || signal_num == 19) // סיגנלים לעצור את התהליך
+
+            //  stop signals
+            else if (signal_num == 2 || signal_num == 19)
             {
                 if (kill(pid, signal_num) == -1)
                 {
                     SystemCallFailed e("kill");
                     throw e;
-                    // להדפיס שגיאה שkill לא עבדה
-                    //  perror("..kill...")
                 }
                 else
                 {
+                    //  update the jobs status
                     job->setStopped(true);
                 }
             }
-            else if (signal_num == 18) // סיגנלים להמשיך את התהליך
+
+            // continute job signals
+            else if (signal_num == 18)
             {
                 if (kill(pid, signal_num) == -1)
                 {
                     SystemCallFailed e("kill");
                     throw e;
-                    // להדפיס שגיאה שkill לא עבדה
-                    //  perror("..kill...")
                 }
                 else
                 {
+                    //  update the jobs status
                     job->setStopped(false);
                 }
             }
+
+            // ordinary signals
             else
             {
                 if (kill(pid, signal_num) == -1)
                 {
                     SystemCallFailed e("kill");
                     throw e;
-                    // להדפיס שגיאה שkill לא עבדה
-                    //  perror("..kill...")
                 }
             }
         }
@@ -891,55 +950,68 @@ void KillCommand::execute()
     {
         InvaildArgument e("kill");
         throw e;
-        // להדפיס שגיאה על ארגמונטים לא טובה
-        // smash error: kill: invalid arguments
     }
 }
 
 void SetcoreCommand::execute()
 {
+    //  checks amount of arguments
     if (args_vec.size() != 3)
     {
         InvaildArgument e("setcore");
         throw e;
-        // לזרוק שגיאה על ארגומנטים
-        // smash error: setcore: invalid arguments
     }
-    int valid_arg1 = isStringNumber(args_vec[1]);
-    int valid_arg2 = isStringNumber(args_vec[2]);
+
+    //  check if the given core and the job id is indeed a number
+    bool valid_arg1 = isStringNumber(args_vec[1]);
+    bool valid_arg2 = isStringNumber(args_vec[2]);
+
     if (valid_arg1 && valid_arg2)
     {
+        //  convert to integers
         int job_id = stoi(args_vec[1]);
         int core_number = stoi(args_vec[2]);
+
+        //  get job required
         JobsList::JobEntry *job = jobs->getJobById(job_id);
+
         if (job == nullptr)
         {
             JobIdDoesntExist e("setcore", job_id);
             throw e;
-            // לזרוק שגיאה שלא קיים כזה עבודה
-            // smash error: setcore: job-id <job-id> does not exist
         }
         else
         {
+
+            //  checking if the command is 'sleep'
+            string cmd_s = _trim(string(job->getCommand()->getCmdL()));
+            string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
+            if (firstWord.compare("sleep") == 0)
+            {
+                // Note : need to check if to do nothing or something else
+                return;
+            }
+
             int pid = job->getCommand()->getProcessId();
 
-            // לבדוק האם מספר ליבה טובה
-            int cores_in_cpu = 100; // למצוא פונקציה שבודקת כמה ליבות יש במחשב // std::thread::hardware_concurrency();
+            //  get amount of cores in the cpu
+            int cores_in_cpu = std::thread::hardware_concurrency();
+
+            //  check if the core that was given is in range
             if (cores_in_cpu < core_number || core_number < 0)
             {
                 InvaildCoreNumber e;
                 throw e;
-                // לזרוק שגיאה שמספר ליבה לא נכון
-                // smash error: setcore: invalid core number
             }
+
+            //  set the job's core
+            //  Note : might be a problem with the bits?
             cpu_set_t set;
             CPU_SET(core_number, &set);
             if (sched_setaffinity(pid, sizeof(cpu_set_t), &set) == -1)
             {
                 SystemCallFailed e("sched_setaffinity");
                 throw e;
-                // perror("smash error: sched_setaffinity failed");
-                // לזרוק חריגה שקראת מערכת נכשלה
             }
         }
     }
@@ -947,32 +1019,31 @@ void SetcoreCommand::execute()
     {
         InvaildArgument e("setcore");
         throw e;
-        // לזרוק שגיאה על ארגומנטים
-        // smash error: setcore: invalid arguments
     }
 }
 
 void GetFileTypeCommand::execute()
 {
+
+    // check amount of arguments
     if (args_vec.size() != 2)
     {
         InvaildArgument e("gettype");
         throw e;
-        // לזרוק שגיאה על ארגומנטים
-
-        // smash error: gettype: invalid aruments
     }
+
+    //  get info on path
     std::string path = args_vec[1];
     struct stat stats;
     if (stat(path.c_str(), &stats) == -1)
     {
         SystemCallFailed e("stat");
         throw e;
-        // perror("smash error: stat failed");
-        // לזרוק חריגה שקראת מערכת נכשלה
     }
+
     int file_size = stats.st_size;
     std::string file_type("");
+    // Note : find a better way that tmp
     switch (stats.st_mode & S_IFMT)
     {
     case S_IFBLK:
@@ -1004,11 +1075,13 @@ void GetFileTypeCommand::execute()
         file_type = tmp;
         break;
     default:
-        // אולי לזרוק חריגה שארגומנטים לא תקין?
+        //  Note: to check what to do if it is not one of those options
         std::string tmp("unknown");
         file_type = tmp;
         break;
     }
+
+    //  print info
     std::cout << path << "'s type is \"" << file_type << "\" and takes up " << file_size << " bytes" << std::endl;
 }
 
@@ -1016,7 +1089,7 @@ void GetFileTypeCommand::execute()
 bool isChmodArgsValid(const string args)
 {
     int count = 0;
-    for (const char c: args)
+    for (const char c : args)
     {
         count++;
         int i = c - '0';
@@ -1024,7 +1097,7 @@ bool isChmodArgsValid(const string args)
             return false;
     }
     return true;
-    }
+}
 
 void ChmodCommand::execute()
 {
@@ -1033,16 +1106,15 @@ void ChmodCommand::execute()
         InvaildArgument e("chmod");
         throw e;
     }
-        {
+    {
         int i;
         i = strtol(args_vec[1].c_str(), 0, 8);
-        if (chmod (args_vec[2].c_str(),i) < 0)
+        if (chmod(args_vec[2].c_str(), i) < 0)
         {
             SystemCallFailed e("chmod");
             throw e;
         }
     }
-
 }
 //<--------------------------- execute functions - end--------------------------->
 
@@ -1050,12 +1122,18 @@ void ChmodCommand::execute()
 
 void JobsList::JobEntry::printInfo() const
 {
+    //  calculate the time passed
     int current_time = time(NULL);
     int time_diff = difftime(current_time, init_time);
+
+    // get status of job
     string stopped_str = is_stopped ? "(stopped)" : "";
+
+    //  print info
     std::cout << "[" << command->getJobId() << "]" << command->getCmdL() << " : " << command->getProcessId() << " " << time_diff << " secs " << stopped_str << std::endl;
 };
 
+//  returns the max id that is currently in the jobs list
 int JobsList::getMaxId() const
 {
     int max_id = 0;
@@ -1071,24 +1149,33 @@ int JobsList::getMaxId() const
 
 void JobsList::addJob(shared_ptr<Command> command, bool isStopped)
 {
+    //  remove finished job before checking max id
     this->removeFinishedJobs();
+
     if (command->getJobId() == -1)
     {
+        //<----------- command was Not in the jobs list before ----------->
 
+        // get job id for new command
         int job_id = getMaxId() + 1;
+
+        //  update the command's job id
         command->setJobId(job_id);
+
+        //  add job
         std::shared_ptr<JobEntry> new_job(new JobEntry(command, isStopped));
         jobs.push_back(new_job);
-
     }
     else
     {
-        // was in the list before
+        //<----------- command was in the jobs list before ----------->
 
+        //  find the job in the jobs list
         for (int i = 0; i < jobs.size(); i++)
         {
             if (jobs[i]->getJobId() == command->getJobId())
             {
+                //  reset time to current time
                 jobs[i]->setTime();
                 break;
             }
@@ -1098,7 +1185,7 @@ void JobsList::addJob(shared_ptr<Command> command, bool isStopped)
 
 void JobsList::removeJobById(int jobId)
 {
-    //  this->removeFinishedJobs();  // endless recursion??
+    //  find job and remove it from the jobs list's vector
     for (int i = 0; i < jobs.size(); i++)
     {
         if (jobs[i]->getJobId() == jobId)
@@ -1111,7 +1198,7 @@ void JobsList::removeJobById(int jobId)
 
 JobsList::JobEntry *JobsList::getJobById(int jobId)
 {
-    this->removeFinishedJobs();
+
     for (int i = 0; i < jobs.size(); i++)
     {
         if (jobs[i]->getJobId() == jobId)
@@ -1132,6 +1219,8 @@ JobsList::JobEntry *JobsList::getLastJob(int *lastJobId)
 JobsList::JobEntry *JobsList::getLastStoppedJob(int *jobId)
 {
     int i = jobs.size() - 1;
+
+    //  goes from back to start in order to get the biggest one
     while (i >= 0)
     {
         if (jobs[i]->getStopped())
@@ -1150,19 +1239,33 @@ void JobsList::printJobsList()
         jobs[i]->printInfo();
     }
 }
+
 void JobsList::killAllJobs()
 {
+    // remove finished jobs in order to prevent a signal from sending
     this->removeFinishedJobs();
+
+    // print info according to assignment
     std::cout << " sending SIGKILL signal to " << jobs.size() << " jobs:" << std::endl;
     for (int i = 0; i < jobs.size(); i++)
     {
         std::cout << jobs[i]->getCommand()->getProcessId() << ": " << jobs[i]->getCommand()->getCmdL() << std::endl;
     }
+
+    //  send kill signals to all processes
     for (int i = jobs.size() - 1; i >= 0; i--)
     {
         int pid = jobs[i]->getCommand()->getProcessId();
         int job_id = jobs[i]->getJobId();
-        kill(pid, SIGKILL);
+
+        //  send kill signal
+        if (kill(pid, SIGKILL) == -1)
+        {
+            SystemCallFailed e("kill");
+            throw e;
+        }
+
+        //  remove from jobs list
         this->removeJobById(job_id);
     }
 }
@@ -1171,11 +1274,13 @@ void JobsList::removeFinishedJobs()
     std::vector<int> jobs_to_delete;
     for (int i = 0; jobs.size(); i++)
     {
-        if (waitpid(jobs[i]->getCommand()->getProcessId(), nullptr, WNOHANG)) // האם זה גם משחרר את התהליך?
+        //  check if a process is finished
+        if (waitpid(jobs[i]->getCommand()->getProcessId(), nullptr, WNOHANG))
         {
             jobs_to_delete.push_back(jobs[i]->getJobId());
         }
-        // updates the stopped field in each job
+
+        //  updates the stopped field in each job while we're here
         if (waitpid(jobs[i]->getCommand()->getProcessId(), nullptr, WUNTRACED))
         {
             jobs[i]->setStopped(true);
@@ -1185,6 +1290,8 @@ void JobsList::removeFinishedJobs()
             jobs[i]->setStopped(false);
         }
     }
+
+    //  remove the finished jobs
     for (int i = 0; i < jobs_to_delete.size(); i++)
     {
         this->removeJobById(jobs_to_delete[i]);
@@ -1219,8 +1326,6 @@ bool isPipe(string cmd_str)
 
 shared_ptr<Command> SmallShell::CreateCommand(const char *cmd_line)
 {
-    // For example:
-
     string cmd_s = _trim(string(cmd_line));
     string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
 
@@ -1238,51 +1343,51 @@ shared_ptr<Command> SmallShell::CreateCommand(const char *cmd_line)
     }
     else if (isPipe(string(cmd_line)))
     {
-        return shared_ptr<Command> (new PipeNormalCommand(cmd_line));
+        return shared_ptr<Command>(new PipeNormalCommand(cmd_line));
     }
     else if (firstWord.compare("pwd") == 0)
     {
-        return shared_ptr<Command> (new GetCurrDirCommand(cmd_line));
+        return shared_ptr<Command>(new GetCurrDirCommand(cmd_line));
     }
     else if (firstWord.compare("showpid") == 0)
     {
-        return shared_ptr<Command> (new ShowPidCommand(cmd_line));
+        return shared_ptr<Command>(new ShowPidCommand(cmd_line));
     }
     else if (firstWord.compare("cd") == 0)
     {
-        return shared_ptr<Command> (new ChangeDirCommand(cmd_line));
+        return shared_ptr<Command>(new ChangeDirCommand(cmd_line));
     }
     else if (firstWord.compare("bg") == 0)
     {
-        return shared_ptr<Command> (new BackgroundCommand(cmd_line, this->jobs_list));
+        return shared_ptr<Command>(new BackgroundCommand(cmd_line, this->jobs_list));
     }
     else if (firstWord.compare("fg") == 0)
     {
-        return shared_ptr<Command> (new ForegroundCommand(cmd_line, this->jobs_list));
+        return shared_ptr<Command>(new ForegroundCommand(cmd_line, this->jobs_list));
     }
     else if (firstWord.compare("kill") == 0)
     {
-        return shared_ptr<Command> (new KillCommand(cmd_line, this->jobs_list));
+        return shared_ptr<Command>(new KillCommand(cmd_line, this->jobs_list));
     }
     else if (firstWord.compare("quit") == 0)
     {
-        return shared_ptr<Command> (new QuitCommand(cmd_line, this->jobs_list));
+        return shared_ptr<Command>(new QuitCommand(cmd_line, this->jobs_list));
     }
     else if (firstWord.compare("setcore") == 0)
     {
-        return shared_ptr<Command> (new SetcoreCommand(cmd_line, this->jobs_list));
+        return shared_ptr<Command>(new SetcoreCommand(cmd_line, this->jobs_list));
     }
     else if (firstWord.compare("getfileinfo") == 0)
     {
-        return shared_ptr<Command> (new GetFileTypeCommand(cmd_line));
+        return shared_ptr<Command>(new GetFileTypeCommand(cmd_line));
     }
     else if (firstWord.compare("chmod") == 0)
     {
-        return shared_ptr<Command> (new ChmodCommand(cmd_line));
+        return shared_ptr<Command>(new ChmodCommand(cmd_line));
     }
     else
     {
-        return shared_ptr<Command> (new ExternalCommand(cmd_line));
+        return shared_ptr<Command>(new ExternalCommand(cmd_line));
     }
 
     return nullptr;
@@ -1290,7 +1395,7 @@ shared_ptr<Command> SmallShell::CreateCommand(const char *cmd_line)
 
 void SmallShell::changeChprompt(const char *cmd_line)
 {
-    vector<string> args = get_args_in_vec(cmd_line); // להוסיף את הפונקציה שמחזירה וקטור מהcmd_line
+    vector<string> args = get_args_in_vec(cmd_line);
     string new_prompt = args.size() == 1 ? "smash> " : (args[1] + "> ");
     prompt = new_prompt;
 }
@@ -1314,6 +1419,7 @@ void SmallShell::removeJob(int job_id)
 
 //<--------------------------- Aux functions--------------------------->
 
+//  Note : is irrelevent?
 bool isBuildInCommand(string firstWord)
 {
     if (firstWord.compare("pwd") == 0 ||
@@ -1335,7 +1441,7 @@ bool isBuildInCommand(string firstWord)
 
 void SmallShell::addTimeOutCommand(std::shared_ptr<TimeoutCommand> cmd)
 {
-        timeOutList->addToList(cmd);
+    timeOutList->addToList(cmd);
 }
 
 void SmallShell::handleAlarm()
@@ -1343,14 +1449,16 @@ void SmallShell::handleAlarm()
     timeOutList->handleSignal();
 }
 
-TimeoutCommand::TimeoutCommand(const char *cmd_line) : BuiltInCommand::BuiltInCommand(cmd_line) {
+TimeoutCommand::TimeoutCommand(const char *cmd_line) : BuiltInCommand::BuiltInCommand(cmd_line)
+{
     SmallShell &smash = SmallShell::getInstance();
     string target_cmd_str = "";
     for (int i = 2; i < args_vec.size(); i++)
         target_cmd_str += args_vec[i];
 
     target_cmd = smash.CreateCommand(target_cmd_str.c_str());
-    if (!isStringNumber(args_vec[1])) {
+    if (!isStringNumber(args_vec[1]))
+    {
         InvaildArgument e("timeout");
         throw e;
     }
@@ -1361,31 +1469,33 @@ TimeoutCommand::TimeoutCommand(const char *cmd_line) : BuiltInCommand::BuiltInCo
 
 void TimeoutCommand::execute()
 {
-    SmallShell& smash = SmallShell::getInstance();
+    SmallShell &smash = SmallShell::getInstance();
 
-   // we assume all the commands are External, because a built-in command will end very quick...
+    // we assume all the commands are External, because a built-in command will end very quick...
     if (!target_cmd->isExternal())
         throw std::runtime_error("got Built-in Command in Timeout!!");
 
     int pid = fork();
 
     // ------------------------------child-------------------------//
-        if (!pid) {
-            target_cmd->execute();
-        }
+    if (!pid)
+    {
+        target_cmd->execute();
+    }
 
-            //------------------------ father--------------------//
-        else
+    //------------------------ father--------------------//
+    else
+    {
+        // store the pid of the child in the list
+        setProcessId(pid);
+
+        if (!(_isBackgroundCommand(target_cmd->getCmdL())))
         {
-            // store the pid of the child in the list
-            setProcessId(pid);
-
-            if (!(_isBackgroundCommand(target_cmd->getCmdL())))
-            {
-                smash.setCurrentCommand(target_cmd.get());
-                waitpid(pid);
-                smash.setCurrentCommand(nullptr);
-            }}
+            smash.setCurrentCommand(target_cmd.get());
+            waitpid(pid);
+            smash.setCurrentCommand(nullptr);
+        }
+    }
 }
 
 void TimeOutList::removeNext()
@@ -1407,27 +1517,26 @@ void TimeOutList::handleSignal()
 {
     int target_pid = next_cmd->getProcessId();
 
-//    // check if the command already stopped before killing it
-//    int res = waitpid(target_pid, nullptr, WNOHANG);
+    //    // check if the command already stopped before killing it
+    //    int res = waitpid(target_pid, nullptr, WNOHANG);
 
     if (target_pid != getpid())
     {
         //
         if (kill(target_pid, SIGKILL) == -1)
         {
-            // לזרוק שגיאה שkill לא עבדה
-            // perror("...kill...");
+            SystemCallFailed e("kill");
+            throw e;
         }
+
         std::cout << "smash: " + string(next_cmd->getCmdL()) + " timed out!" << std::endl;
     }
     removeNext();
-
-
 }
 void TimeOutList::addToList(std::shared_ptr<TimeoutCommand> new_cmd)
 {
     int new_cmd_time = new_cmd->getTime();
-    if ( new_cmd_time < time_to_next + time(nullptr))
+    if (new_cmd_time < time_to_next + time(nullptr))
     {
         next_cmd = new_cmd.get();
         makeAlarm();
