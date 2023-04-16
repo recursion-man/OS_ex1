@@ -112,7 +112,8 @@ public:
   explicit RedirectionCommand(const char *cmd_line, std::string); // Command::Command(cmd_line)
   virtual ~RedirectionCommand();
   void execute() override;
-  virtual void prepare(bool);
+  void prepareGeneral(bool);
+  virtual void prepare();
   void cleanup();
 };
 

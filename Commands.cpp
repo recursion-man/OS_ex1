@@ -210,17 +210,17 @@ void RedirectionCommand::execute()
 void RedirectionNormalCommand::prepare()
 {
     bool write_with_append = false;
-    RedirectionCommand::prepare(write_with_append);
+    RedirectionCommand::prepareGeneral(write_with_append);
 
 }
 
 void RedirectionAppendCommand::prepare()
 {
     bool write_with_append = true;
-    RedirectionCommand::prepare(write_with_append);
+    RedirectionCommand::prepareGeneral(write_with_append);
 }
 
-void RedirectionCommand::prepare(bool write_with_append)
+void RedirectionCommand::prepareGeneral(bool write_with_append)
 {
     // replacing stdout with dest
     int res_close = close(1);
