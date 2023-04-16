@@ -1058,42 +1058,35 @@ void GetFileTypeCommand::execute()
     }
 
     int file_size = stats.st_size;
-    std::string file_type("");
-    // Note : find a better way that tmp
+
+    //  get file's type
+    std::string file_type;
     switch (stats.st_mode & S_IFMT)
     {
     case S_IFBLK:
-        std::string tmp("block device");
-        file_type = tmp;
+        file_type = "block device";
         break;
     case S_IFCHR:
-        std::string tmp("character device");
-        file_type = tmp;
+        file_type = "character device";
         break;
     case S_IFDIR:
-        std::string tmp("directory");
-        file_type = tmp;
+        file_type = "directory";
         break;
     case S_IFIFO:
-        std::string tmp("FIFO");
-        file_type = tmp;
+        file_type = "FIFO";
         break;
     case S_IFLNK:
-        std::string tmp("symlink");
-        file_type = tmp;
+        file_type = "symlink";
         break;
     case S_IFREG:
-        std::string tmp("regular file");
-        file_type = tmp;
+        file_type = "regular file";
         break;
     case S_IFSOCK:
-        std::string tmp("socket");
-        file_type = tmp;
+        file_type = "socket";
         break;
     default:
         //  Note: to check what to do if it is not one of those options
-        std::string tmp("unknown");
-        file_type = tmp;
+        file_type = "unknown";
         break;
     }
 
