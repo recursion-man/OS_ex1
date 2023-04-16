@@ -73,11 +73,9 @@ protected:
 public:
   PipeCommand(const char *cmd_line, std::string);
   virtual ~PipeCommand() {}
-  // void execute() override;
   void execute(int);
   void prepareWrite(int);
-  void prepareRead(int);
-  void ReadCleanUp();
+  void prepareRead();
   virtual void cleanUp();
 };
 
@@ -85,8 +83,6 @@ class PipeNormalCommand : public PipeCommand
 {
 public:
   PipeNormalCommand(const char *cmd_line) : PipeCommand::PipeCommand(cmd_line, "|") {}
-  //    void prepareWrite() override;
-  //    void prepareRead() override;
   void execute() override;
 };
 
@@ -115,7 +111,7 @@ public:
   explicit RedirectionCommand(const char *cmd_line, std::string); // Command::Command(cmd_line)
   virtual ~RedirectionCommand();
   void execute() override;
-  virtual void prepare();
+  virtual void prepare(bool);
   void cleanup();
 };
 
@@ -123,14 +119,14 @@ class RedirectionAppendCommand : public RedirectionCommand
 {
 public:
   explicit RedirectionAppendCommand(const char *cmd_line) : RedirectionCommand(cmd_line, ">>"){};
-  void prepare() override;
+  void prepare();
 };
 
 class RedirectionNormalCommand : public RedirectionCommand
 {
 public:
   explicit RedirectionNormalCommand(const char *cmd_line) : RedirectionCommand(cmd_line, ">"){};
-  void prepare() override;
+  void prepare();
 };
 
 class ChangeDirCommand : public BuiltInCommand
@@ -140,7 +136,7 @@ private:
   char **plastPwd;
 
 public:
-  ChangeDirCommand::ChangeDirCommand(const char *cmd_line) : BuiltInCommand::BuiltInCommand(cmd_line){};
+  ChangeDirCommand(const char *cmd_line) : BuiltInCommand::BuiltInCommand(cmd_line){};
   virtual ~ChangeDirCommand() {}
   void execute() override;
 };

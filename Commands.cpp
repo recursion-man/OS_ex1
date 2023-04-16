@@ -155,7 +155,7 @@ RedirectionCommand::RedirectionCommand(const char *cmd_line, string sign) : Comm
 {
     SmallShell &smash = SmallShell::getInstance();
 
-    // finding the > / >> sign and checking args correctness
+    // finding the > / >> sign and validating arguments
     string cmd_str = string(cmd_line);
     int sign_index = cmd_str.find(sign);
     if (sign_index == 0 || sign_index == cmd_str.size() + 1)
@@ -164,7 +164,7 @@ RedirectionCommand::RedirectionCommand(const char *cmd_line, string sign) : Comm
         throw e;
     }
 
-    // calculating the base command to be redirected (e.g., ls, showPid, ...)
+    // calculating the base command to be redirected (e.g., ls, showPid, ...) and the destination input file
     string base_cmd = cmd_str.substr(0, sign_index);
     dest = get_args_in_vec(cmd_str.substr(sign_index + 1, cmd_str.size() + 1).c_str())[0];
     base_command = smash.CreateCommand(base_cmd.c_str()).get();
@@ -209,8 +209,19 @@ void RedirectionCommand::execute()
     cleanup();
 }
 
-/// TO-DO: better Polymorphism with prepare()
 void RedirectionNormalCommand::prepare()
+{
+    bool write_with_append = false;
+    RedirectionCommand::prepare(write_with_append);
+}
+
+void RedirectionAppendCommand::prepare()
+{
+    bool write_with_append = true;
+    RedirectionCommand::prepare(write_with_append);
+}
+
+void RedirectionCommand::prepare(bool write_with_append)
 {
     // replacing stdout with dest
     int res_close = close(1);
@@ -219,25 +230,14 @@ void RedirectionNormalCommand::prepare()
         SystemCallFailed e("close");
         throw e;
     }
-    // permissions
-    int res_open = open(dest.c_str(), O_WRONLY | O_CREAT | O_TRUNC, S_IRWXU);
-    if (res_open < 0)
-    {
-        SystemCallFailed e("open");
-        throw e;
-    }
-}
+    int res_open;
 
-/// TO-DO: better Polymorphism with prepare()
-void RedirectionAppendCommand::prepare()
-{
-    int res_close = close(1);
-    if (res_close < 0)
-    {
-        SystemCallFailed e("close");
-        throw e;
-    }
-    int res_open = open(dest.c_str(), O_WRONLY | O_APPEND | O_CREAT, S_IRWXU);
+    // permissions
+    if (write_with_append)
+        res_open = open(dest.c_str(), O_WRONLY | O_APPEND | O_CREAT, S_IRWXU);
+    else
+        res_open = open(dest.c_str(), O_WRONLY | O_APPEND | O_CREAT, S_IRWXU);
+
     if (res_open < 0)
     {
         SystemCallFailed e("open");
@@ -250,7 +250,7 @@ void RedirectionCommand::cleanup()
     int res = dup2(out_pd, 1);
     if (res < 0)
     {
-        SystemCallFailed e("close");
+        SystemCallFailed e("dup2");
         throw e;
     }
 
@@ -293,9 +293,9 @@ void PipeCommand::prepareWrite(int out_pid_num)
     close(fd[1]);
 }
 
-void PipeCommand::prepareRead(int in_pid_num)
+void PipeCommand::prepareRead()
 {
-    dup2(fd[0], in_pid_num);
+    dup2(fd[0], 0);
     close(fd[0]);
     close(fd[1]);
 }
@@ -317,13 +317,13 @@ void PipeCommand::execute(int pid_num)
     if (!pid1)
     {
         setpgrp();
-        prepareRead(pid_num);
+        prepareRead();
         read_command->execute();
     }
 
     prepareWrite(pid_num);
 
-    // fork write end
+    // write end of the pipe
     if (write_command->isExternal())
     {
         int pid2 = fork();
@@ -332,14 +332,18 @@ void PipeCommand::execute(int pid_num)
             setpgrp();
             write_command->execute();
         }
+        // wait for the "write-son" to finish writing
         waitpid(pid2);
     }
-
     else
+    {
         write_command->execute();
+    }
 
+    // wait for the "read-son" to finish reading
     waitpid(pid1);
 
+    // restoring the FDT for smash
     cleanUp();
 }
 
@@ -348,10 +352,20 @@ void PipeCommand::cleanUp()
     int res1 = dup2(standard_in_pd, 0);
     int res2 = dup2(standard_out_pd, 1);
     int res3 = dup2(standard_error_pd, 2);
-    close(standard_out_pd);
-    close(standard_in_pd);
-    close(standard_error_pd);
-    /// if (res1||res2 == -1, throw
+    if (res1 == -1 || res2 == -1 || res3 == -1)
+    {
+        SystemCallFailed e("dup2");
+        throw e;
+    }
+
+    res1 = close(standard_out_pd);
+    res2 = close(standard_in_pd);
+    res3 = close(standard_error_pd);
+    if (res1 == -1 || res2 == -1 || res3 == -1)
+    {
+        SystemCallFailed e("close");
+        throw e;
+    }
 }
 
 //<---------------------------C'tors and D'tors - end--------------------------->
