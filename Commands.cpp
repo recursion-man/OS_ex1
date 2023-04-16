@@ -158,7 +158,7 @@ RedirectionCommand::RedirectionCommand(const char *cmd_line, string sign) : Comm
     int sign_index = cmd_str.find(sign);
     if (sign_index == 0 || sign_index == cmd_str.size() + 1)
     {
-        InvaildArgument e(">");
+        InvaildArgument e(sign);
         throw e;
     }
 
@@ -269,12 +269,17 @@ PipeCommand::PipeCommand(const char *cmd_line, string sign) : Command::Command(c
     int sign_index = cmd_str.find(sign);
     if (sign_index == 0 || sign_index == cmd_str.size() + 1)
     {
-    } /// throw
-    string first_cmd = cmd_str.substr(0, sign_index - 1);
-    string second_cmd = cmd_str.substr(sign_index + 1, cmd_str.size() + 1);
+        InvaildArgument e(sign);
+        throw e;
+    }
+    // calculating the commands for the pipe
+    string first_cmd = cmd_str.substr(0, sign_index);
+    string second_cmd = cmd_str.substr(sign_index + 1, cmd_str.size() - sign_index - 1);
     write_command = smash.CreateCommand(first_cmd.c_str()).get();
     read_command = smash.CreateCommand(second_cmd.c_str()).get();
     pipe(fd);
+
+    // allocating new FD for the stdin(0) stdout(1)  and stderr(2)
     standard_in_pd = dup(0);
     standard_out_pd = dup(1);
     standard_error_pd = dup(2);
@@ -306,7 +311,7 @@ void PipeSterrCommand::execute()
 
 void PipeCommand::execute(int pid_num)
 {
-    //    // fork the read end
+    // fork the second process - for the read end of the pipe
     int pid1 = fork();
     if (!pid1)
     {
