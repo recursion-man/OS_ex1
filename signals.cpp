@@ -2,6 +2,7 @@
 #include <signal.h>
 #include "signals.h"
 #include "Commands.h"
+#include "Exeptions.h"
 
 using namespace std;
 
@@ -14,13 +15,15 @@ void ctrlCHandler(int sig_num)
   if (current_command != nullptr)
   {
     std::string cmd_line(current_command->getCmdL());
+
+    // we assume ctrl C will not be sent in Special Commands
     if (!(isPipe(cmd_line) || isRedirect(cmd_line) || isSterrPipe(cmd_line) || isAppendRedirect(cmd_line)))
     {
       int pid = current_command->getProcessId();
       if (kill(pid, SIGKILL) == -1)
       {
-        // לזרוק שגיאה שkill לא עבדה
-        // perror("...kill...");
+        SystemCallFailed e("kill");
+        throw e;
       }
       else
       {
@@ -39,17 +42,19 @@ void ctrlZHandler(int sig_num)
 {
   std::cout << "smash: got ctrl-Z" << std::endl;
   SmallShell &smash = SmallShell::getInstance();
-  Command *current_command = smash.getCurrentCommand();
+  std::shared_ptr<Command> current_command = smash.getCurrentCommand();
   if (current_command != nullptr)
   {
-    std::string cmd_line(current_command->getCmdL());
-    if (!(isPipe(cmd_line) || isRedirect(cmd_line) || isSterrPipe(cmd_line) || isAppendRedirect(cmd_line)))
+
+      // we assume ctrl Z will not be sent in Special Commands
+      std::string cmd_line(current_command->getCmdL());
+      if (!(isPipe(cmd_line) || isRedirect(cmd_line) || isSterrPipe(cmd_line) || isAppendRedirect(cmd_line)))
     {
       int pid = current_command->getProcessId();
       if (kill(pid, SIGSTOP) == -1)
       {
-        // לזרוק שגיאה שkill לא עבדה
-        // perror("...kill...");
+          SystemCallFailed e("kill");
+          throw e;
       }
       else
       {

@@ -151,55 +151,116 @@ Command::Command(const char *cmd_line) : job_id(-1), process_id(getpid()), cmd_l
 
 RedirectionCommand::RedirectionCommand(const char *cmd_line, string sign) : Command::Command(cmd_line)
 {
-    /// edge case: check if the last/fisrt arg is > or |
-
     SmallShell &smash = SmallShell::getInstance();
+
+    // finding the > / >> sign and checking args correctness
     string cmd_str = string(cmd_line);
     int sign_index = cmd_str.find(sign);
     if (sign_index == 0 || sign_index == cmd_str.size() + 1)
     {
-    } /// throw
+        InvaildArgument e(">");
+        throw e;
+    }
 
+    // calculating the base command to be redirected (e.g., ls, showPid, ...)
     string base_cmd = cmd_str.substr(0, sign_index);
-
-    // a little messy... can be simpler
     dest = get_args_in_vec(cmd_str.substr(sign_index + 1, cmd_str.size() + 1).c_str())[0];
-
     base_command = smash.CreateCommand(base_cmd.c_str()).get();
 
+    // out_pd = the index of a new FD that points to the standard output
     out_pd = dup(1);
 }
 
 void RedirectionCommand::execute()
 {
+    // changing the standard output to dest for smash itself
     prepare();
-    base_command->execute();
+
+    // external cmd routine:
+    if (base_command->isExternal())
+    {
+        int pid = fork();
+
+        // -------------child------------//
+        // notice we assume the cmd isn't running in the BackGround and won't get interrupted
+        if (!pid)
+        {
+            base_command->execute();
+        }
+
+        // ------------father----------//
+        else
+        {
+            waitpid(pid);
+        }
+    }
+
+    // in case the cmd isn't external
+    else
+    {
+        base_command->execute();
+    }
+
+    // restores the correct stdout for smash
     cleanup();
 }
 
+
+/// TO-DO: better Polymorphism with prepare()
 void RedirectionNormalCommand::prepare()
 {
-
+    // replacing stdout with dest
     int res_close = close(1);
-    /// if (res_close == -1) {throw}
+    if (res_close < 0) {
+        SystemCallFailed e("close");
+        throw e;
+    }
+    // permissions
     int res_open = open(dest.c_str(), O_WRONLY | O_CREAT | O_TRUNC, S_IRWXU);
-    /// if (res_open ==-1) {throw}
+    if (res_open < 0) {
+        SystemCallFailed e("open");
+        throw e;
+    }
 }
 
+/// TO-DO: better Polymorphism with prepare()
 void RedirectionAppendCommand::prepare()
 {
 
     int res_close = close(1);
-    /// if (res_close == -1) {throw}
+    if (res_close < 0) {
+        SystemCallFailed e("close");
+        throw e;
+    }
     int res_open = open(dest.c_str(), O_WRONLY | O_APPEND | O_CREAT, S_IRWXU);
-    /// if (res_open ==-1) {throw}
+    if (res_open < 0) {
+        SystemCallFailed e("open");
+        throw e;
+    }
 }
 
 void RedirectionCommand::cleanup()
 {
     int res = dup2(out_pd, 1);
-    /// if (res ==-1) --- {throw serious exception- smash output is wrong}
+    if (res < 0) {
+        SystemCallFailed e("close");
+        throw e;
+    }
 }
+
+RedirectionCommand::~RedirectionCommand()
+{
+    // closing the new pd so the FDT won't get full
+    int res = close(out_pd);
+    if (res < 0) {
+        SystemCallFailed e("close");
+        throw e;
+    }
+}
+
+
+
+
 
 PipeCommand::PipeCommand(const char *cmd_line, string sign) : Command::Command(cmd_line)
 {
@@ -287,24 +348,6 @@ void PipeCommand::cleanUp()
     /// if (res1||res2 == -1, throw
 }
 
-//    {
-//        prepareWrite();
-//        write_command->execute();
-//    } else {
-//        write_command->execute(this, false);
-//    }
-//
-//    // read
-//    if (!read_command->isExternal())
-//    {
-//        prepareRead();
-//        read_command->execute();
-//    } else {
-//        read_command->execute(this, true);
-//    }
-//
-//    // reset the smash pd-table
-//    cleanup();
 
 //<---------------------------C'tors and D'tors - end--------------------------->
 
@@ -334,12 +377,12 @@ int JobsList::JobEntry::getJobId() const
     return command->getJobId();
 };
 
-Command *JobsList::JobEntry::getCommand() const
+shared_ptr<Command> JobsList::JobEntry::getCommand() const
 {
-    return command.get();
+    return command;
 };
 
-Command *SmallShell::getCurrentCommand() const
+shared_ptr<Command> SmallShell::getCurrentCommand() const
 {
     return current_command;
 }
@@ -367,7 +410,7 @@ void JobsList::JobEntry::setStopped(bool is_stopped)
     is_stopped = is_stopped;
 };
 
-void SmallShell::setCurrentCommand(Command *command)
+void SmallShell::setCurrentCommand(shared_ptr<Command> command)
 {
     current_command = command;
 }
@@ -391,10 +434,20 @@ void SmallShell::executeCommand(const char *cmd_line)
     {
         cmd->execute();
     }
+
+    ///--------------------------Bonus start----------------------------------------
+    /// -----------------------------else if (cmd == TimeOut)----------------
+    ///             {
+    ///                this->addTimeOutCommand(cmd);
+    ///                cmd->execute();
+    ///                this->addJob(cmd, false);
+    ///            }
+    ///---------------------------Bonus end-------------------------------------------
+
     else
     {
-        cmd->setShared(cmd);
         int pid = fork();
+
         //--------------------- child -----------------------------//
         if (pid == 0)
         {
@@ -412,16 +465,16 @@ void SmallShell::executeCommand(const char *cmd_line)
         {
             if (!(_isBackgroundCommand(cmd_line)))
             {
-                current_command = (cmd.get());
+                current_command = cmd;
                 waitpid(pid);
                 current_command = (nullptr);
             }
 
-            //// נראלי שכבר הכנסנו בתור execute את הjob..../
-//            else
-//            {
-//                this->addJob(cmd, false);
-//            }
+// add background Command to Joblist
+             else
+            {
+                this->addJob(cmd, false);
+            }
         }
     }}
 
@@ -534,16 +587,11 @@ void ChangeDirCommand::execute()
 
 void ExternalCommand::execute()
 {
-    SmallShell &smash = SmallShell::getInstance();
 
+    // removing & sign
     if (_isBackgroundCommand(cmd_l))
     {
-        smash.addJob(shared_instance);
         removeBackgroundSignString(args_vec.back().c_str());
-    }
-    else
-    {
-        smash.setCurrentCommand(this);
     }
 
     // parse path depending on Command type (Simple or Complex)
@@ -558,19 +606,26 @@ void ExternalCommand::execute()
         args_vec.insert(args_vec.begin()+1, "-c");
     }
 
-
     // reforming args_vec
     char **args = new char *[args_vec.size()+1];
     _reformatArgsVec(args, args_vec);
 
-
-    if (execv(args[0], args) == -1)
-    {
-        smash.removeJob(this->job_id);
-        smash.setCurrentCommand(nullptr);
-        SystemCallFailed e("exec");
-        throw e;
+    // executing Command
+    if (execv(args[0], args) == -1) {
+        perror("smash error: execv failed");
     }
+
+// ---------------- validity check is in the father responsibility: in SmallShell::executeCommand-----//
+
+//    if (execv(args[0], args) == -1)
+//    {
+//        smash.removeJob(this->job_id);
+//        smash.setCurrentCommand(nullptr);
+//        SystemCallFailed e("exec");
+//        throw e;
+//    }
+
+
 }
 
 void JobsCommand::execute()
@@ -585,7 +640,6 @@ void BackgroundCommand::execute()
     {
         InvaildArgument e("bg");
         throw e;
-        // לזרוק שגיאה שinvalid arguments
     }
     else if (args_vec.size() == 2)
     {
@@ -661,8 +715,6 @@ void activateCommand(int job_id, JobsList *jobs)
     {
         JobsListEmpty e;
         throw e;
-        // לזרוק שגיאה שהרשימת עבודות ריקה
-        // smash error: fg: jobs list is empty
     }
     else
     {
@@ -672,8 +724,6 @@ void activateCommand(int job_id, JobsList *jobs)
         {
             SystemCallFailed e("kill");
             throw e;
-            // לזרוק שגיאה שפעולת מערכת kill לא הצליחה
-            // perror("perror(“smash error: kill failed”");
         }
         job_to_cont->setStopped(false);
         SmallShell &smash = SmallShell::getInstance();
@@ -688,7 +738,6 @@ void ForegroundCommand::execute()
 {
     if (args_vec.size() == 1)
     {
-
         activateCommand(0, jobs);
     }
     else if (args_vec.size() == 2)
@@ -703,15 +752,12 @@ void ForegroundCommand::execute()
         {
             InvaildArgument e("bg");
             throw e;
-            // לזרוק שגיאה שהפורמט ארגומנטים לא מתאים
-            // smash error: bg: invalid arguments
+
         }
         if (job_id_to_find <= 0)
         {
             InvaildArgument e("bg");
             throw e;
-            // לזרוק שגיאה שהפורמט ארגומנטים לא מתאים
-            // smash error: bg: invalid arguments
         }
         else
         {
@@ -722,8 +768,6 @@ void ForegroundCommand::execute()
     {
         InvaildArgument e("bg");
         throw e;
-        // לזרוק שגיאה שהפורמט ארגומנטים לא מתאים
-        // smash error: bg: invalid arguments
     }
 }
 
@@ -1024,7 +1068,7 @@ int JobsList::getMaxId() const
     return max_id;
 }
 
-void JobsList::addJob(shared_ptr<Command> command, bool isStopped = false)
+void JobsList::addJob(shared_ptr<Command> command, bool isStopped)
 {
     this->removeFinishedJobs();
     if (command->getJobId() == -1)
@@ -1033,7 +1077,7 @@ void JobsList::addJob(shared_ptr<Command> command, bool isStopped = false)
         int job_id = getMaxId() + 1;
         command->setJobId(job_id);
         std::shared_ptr<JobEntry> new_job(new JobEntry(command, isStopped));
-    jobs.push_back(new_job);
+        jobs.push_back(new_job);
 
     }
     else
@@ -1053,7 +1097,7 @@ void JobsList::addJob(shared_ptr<Command> command, bool isStopped = false)
 
 void JobsList::removeJobById(int jobId)
 {
-    this->removeFinishedJobs();
+    //  this->removeFinishedJobs();  // endless recursion??
     for (int i = 0; i < jobs.size(); i++)
     {
         if (jobs[i]->getJobId() == jobId)
@@ -1130,7 +1174,7 @@ void JobsList::removeFinishedJobs()
         {
             jobs_to_delete.push_back(jobs[i]->getJobId());
         }
-        // updates the stoped feild in each job
+        // updates the stopped field in each job
         if (waitpid(jobs[i]->getCommand()->getProcessId(), nullptr, WUNTRACED))
         {
             jobs[i]->setStopped(true);
@@ -1318,7 +1362,7 @@ void TimeoutCommand::execute()
 {
     SmallShell& smash = SmallShell::getInstance();
 
-   // we assume all the commands are External, because a built-in command will end very quick - since it runs at the front
+   // we assume all the commands are External, because a built-in command will end very quick...
     if (!target_cmd->isExternal())
         throw std::runtime_error("got Built-in Command in Timeout!!");
 
@@ -1326,23 +1370,21 @@ void TimeoutCommand::execute()
 
     // ------------------------------child-------------------------//
         if (!pid) {
-            // we need to store the pid of the child in the list
-            setProcessId(getpid());
-            smash.addTimeOutCommand(dynamic_pointer_cast<TimeoutCommand>(shared_instance));
             target_cmd->execute();
         }
 
             //------------------------ father--------------------//
         else
         {
+            // store the pid of the child in the list
+            setProcessId(pid);
+
             if (!(_isBackgroundCommand(target_cmd->getCmdL())))
             {
                 smash.setCurrentCommand(target_cmd.get());
                 waitpid(pid);
                 smash.setCurrentCommand(nullptr);
             }}
-
-
 }
 
 void TimeOutList::removeNext()

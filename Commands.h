@@ -19,7 +19,7 @@ protected:
   const char *cmd_l;
   bool external;
   std::vector<std::string> args_vec;
-  std::shared_ptr<Command> shared_instance;
+  //std::shared_ptr<Command> shared_instance;
 
 public:
   Command(const char *cmd_line);
@@ -101,13 +101,19 @@ public:
 class RedirectionCommand : public Command
 {
 protected:
+
+  // command to be redirect
   Command *base_command;
+
+  // the destination file
   std::string dest;
+
+  // index of a new FD that points to the standard output
   int out_pd;
 
 public:
   explicit RedirectionCommand(const char *cmd_line, std::string); // Command::Command(cmd_line)
-  virtual ~RedirectionCommand() {}
+  virtual ~RedirectionCommand();
   void execute() override;
   virtual void prepare();
   void cleanup();
@@ -185,7 +191,7 @@ public:
 
     //  getters
     bool getStopped() const;
-    Command *getCommand() const;
+    std::shared_ptr<Command> getCommand() const;
     int getJobId() const;
 
     //  setters
@@ -332,7 +338,7 @@ private:
   // TODO: Add your data members
   std::string prompt;
   std::string last_wd;
-  Command *current_command;
+  std::shared_ptr<Command> current_command;
   JobsList *jobs_list;
   TimeOutList* timeOutList;
 
@@ -356,9 +362,9 @@ public:
   // TODO: add extra methods as needed
   std::string get_last_wd() const;
   void set_last_wd(std::string);
-  void setCurrentCommand(Command *command);
+  void setCurrentCommand(std::shared_ptr<Command>);
 
-  Command *getCurrentCommand() const;
+    std::shared_ptr<Command> getCurrentCommand() const;
   void printPrompt() const;
   void changeChprompt(const char *cmd_line);
 
