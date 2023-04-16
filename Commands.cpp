@@ -180,12 +180,14 @@ void RedirectionCommand::execute()
     if (base_command->isExternal())
     {
         int pid = fork();
-
         // -------------child------------//
         // notice we assume the cmd isn't running in the BackGround and won't get interrupted
         if (!pid)
         {
-            base_command->execute();
+         int res = setpgrp();
+         if (res <0)
+             perror("smash error: setpgrp failed");
+         base_command->execute();
         }
 
         // ------------father----------//
@@ -226,7 +228,6 @@ void RedirectionNormalCommand::prepare()
 /// TO-DO: better Polymorphism with prepare()
 void RedirectionAppendCommand::prepare()
 {
-
     int res_close = close(1);
     if (res_close < 0) {
         SystemCallFailed e("close");
@@ -246,17 +247,13 @@ void RedirectionCommand::cleanup()
         SystemCallFailed e("close");
         throw e;
     }
-}
 
-RedirectionCommand::~RedirectionCommand()
-{
     // closing the new pd so the FDT won't get full
-    int res = close(out_pd);
+     res = close(out_pd);
     if (res < 0) {
         SystemCallFailed e("close");
         throw e;
-    }
-}
+}}
 
 
 
@@ -461,13 +458,13 @@ void SmallShell::executeCommand(const char *cmd_line)
                 SystemCallFailed e("setpgrp");
                 throw e;
             }
-            cmd->setProcessId(getpid());
             cmd->execute();
         }
 
         //------------------------ father--------------------//
         else
         {
+            cmd->setProcessId(pid);
             if (!(_isBackgroundCommand(cmd_line)))
             {
                 current_command = cmd;
@@ -592,13 +589,11 @@ void ChangeDirCommand::execute()
 
 void ExternalCommand::execute()
 {
-
     // removing & sign
     if (_isBackgroundCommand(cmd_l))
     {
         removeBackgroundSignString(args_vec.back().c_str());
     }
-
     // parse path depending on Command type (Simple or Complex)
     // inserting "-c" for Complex Command
     if (_isSimpleExternal(cmd_l))
@@ -618,6 +613,7 @@ void ExternalCommand::execute()
     // executing Command
     if (execv(args[0], args) == -1) {
         perror("smash error: execv failed");
+        exit(1);
     }
 
 // ---------------- validity check is in the father responsibility: in SmallShell::executeCommand-----//

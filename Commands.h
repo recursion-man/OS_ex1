@@ -61,6 +61,7 @@ public:
 
 class PipeCommand : public Command
 {
+    //echo aaa | grep a > stdout
 protected:
   Command *write_command;
   Command *read_command;

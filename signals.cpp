@@ -11,7 +11,7 @@ void ctrlCHandler(int sig_num)
   // TODO: Add your implementation
   std::cout << "smash: got ctrl-C" << std::endl;
   SmallShell &smash = SmallShell::getInstance();
-  Command *current_command = smash.getCurrentCommand();
+  shared_ptr<Command> current_command = smash.getCurrentCommand();
   if (current_command != nullptr)
   {
     std::string cmd_line(current_command->getCmdL());
