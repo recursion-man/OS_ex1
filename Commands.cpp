@@ -140,7 +140,7 @@ bool isStringNumber(std::string str)
 //<---------------------------C'tors and D'tors--------------------------->
 
 // Small Shell
-SmallShell::SmallShell() : prompt("smash"), last_wd(""), current_command(nullptr), jobs_list()
+SmallShell::SmallShell() : prompt("smash>"), last_wd(""), current_command(nullptr), jobs_list(new JobsList())
 {
 }
 
@@ -152,8 +152,8 @@ Command::Command(const char *cmd_line) : job_id(-1), process_id(getpid()), cmd_l
 };
 
 RedirectionCommand::RedirectionCommand(const char *cmd_line, string sign) : Command(cmd_line),
-base_command(nullptr), dest(), out_pd()
- {
+                                                                            base_command(nullptr), dest(), out_pd()
+{
     SmallShell &smash = SmallShell::getInstance();
 
     // finding the > / >> sign and validating arguments
@@ -265,7 +265,7 @@ void RedirectionCommand::cleanup()
 }
 
 PipeCommand::PipeCommand(const char *cmd_line, string sign) : Command(cmd_line),
-write_command(nullptr), read_command(nullptr), standard_in_pd(0), standard_out_pd(0), standard_error_pd(0), fd()
+                                                              write_command(nullptr), read_command(nullptr), standard_in_pd(0), standard_out_pd(0), standard_error_pd(0), fd()
 {
     SmallShell &smash = SmallShell::getInstance();
     string cmd_str = string(cmd_line);
@@ -374,12 +374,10 @@ void PipeCommand::cleanUp()
 
 //<---------------------------getters--------------------------->
 
-
 std::string SmallShell::get_last_wd() const
 {
     return last_wd;
 }
-
 
 const char *Command::getCmdL() const
 {
@@ -1265,18 +1263,21 @@ void JobsList::printJobsList()
 void JobsList::killAllJobs()
 {
     // remove finished jobs in order to prevent a signal from sending
-    this->removeFinishedJobs();
 
+    this->removeFinishedJobs();
     // print info according to assignment
     std::cout << " sending SIGKILL signal to " << jobs.size() << " jobs:" << std::endl;
     for (int i = 0; i < int(jobs.size()); i++)
     {
+
         std::cout << jobs[i]->getCommand()->getProcessId() << ": " << jobs[i]->getCommand()->getCmdL() << std::endl;
     }
 
     //  send kill signals to all processes
-    for (int i = jobs.size() - 1; i >= 0; i--)
+
+    for (int i = int(jobs.size()) - 1; i >= 0; i--)
     {
+
         int pid = jobs[i]->getCommand()->getProcessId();
         int job_id = jobs[i]->getJobId();
 
@@ -1348,6 +1349,7 @@ bool isPipe(string cmd_str)
 
 shared_ptr<Command> SmallShell::CreateCommand(const char *cmd_line)
 {
+
     string cmd_s = _trim(string(cmd_line));
     string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
 

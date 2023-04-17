@@ -206,9 +206,8 @@ public:
   std::vector<std::shared_ptr<JobEntry>> jobs;
 
 public:
-  JobsList();
+  JobsList() : jobs(){};
   ~JobsList() = default;
-  ;
 
   //  getters
   JobEntry *getJobById(int jobId);
@@ -348,7 +347,10 @@ public:
     // Instantiated on first use.
     return instance;
   }
-  ~SmallShell() = default;
+  ~SmallShell()
+  {
+    delete jobs_list;
+  };
 
   //  aux
   void executeCommand(const char *cmd_line);
