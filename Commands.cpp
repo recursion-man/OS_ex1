@@ -1420,6 +1420,10 @@ shared_ptr<Command> SmallShell::CreateCommand(const char *cmd_line)
     {
         return shared_ptr<Command>(new ChmodCommand(cmd_line));
     }
+    else if (firstWord.compare("jobs") == 0)
+    {
+        return shared_ptr<Command>(new JobsCommand(cmd_line, jobs_list));
+    }
     else
     {
         return shared_ptr<Command>(new ExternalCommand(cmd_line));
