@@ -151,8 +151,9 @@ Command::Command(const char *cmd_line) : job_id(-1), process_id(getpid()), cmd_l
     args_vec = get_args_in_vec(cmd_l);
 };
 
-RedirectionCommand::RedirectionCommand(const char *cmd_line, string sign) : Command(cmd_line)
-{
+RedirectionCommand::RedirectionCommand(const char *cmd_line, string sign) : Command(cmd_line),
+base_command(nullptr), dest(), out_pd()
+ {
     SmallShell &smash = SmallShell::getInstance();
 
     // finding the > / >> sign and validating arguments
@@ -263,7 +264,8 @@ void RedirectionCommand::cleanup()
     }
 }
 
-PipeCommand::PipeCommand(const char *cmd_line, string sign) : Command(cmd_line)
+PipeCommand::PipeCommand(const char *cmd_line, string sign) : Command(cmd_line),
+write_command(nullptr), read_command(nullptr), standard_in_pd(0), standard_out_pd(0), standard_error_pd(0), fd()
 {
     SmallShell &smash = SmallShell::getInstance();
     string cmd_str = string(cmd_line);
@@ -371,6 +373,14 @@ void PipeCommand::cleanUp()
 //<---------------------------C'tors and D'tors - end--------------------------->
 
 //<---------------------------getters--------------------------->
+
+
+std::string SmallShell::get_last_wd() const
+{
+    return last_wd;
+}
+
+
 const char *Command::getCmdL() const
 {
     return cmd_l;
@@ -409,6 +419,12 @@ shared_ptr<Command> SmallShell::getCurrentCommand() const
 //<---------------------------getters - end--------------------------->
 
 //<---------------------------setters--------------------------->
+
+void SmallShell::set_last_wd(std::string str)
+{
+    last_wd = str;
+}
+
 void Command::setJobId(int id)
 {
     job_id = id;
