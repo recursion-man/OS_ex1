@@ -141,7 +141,7 @@ bool isStringNumber(std::string str)
 //<---------------------------C'tors and D'tors--------------------------->
 
 // Small Shell
-SmallShell::SmallShell() : prompt("smash"), last_wd(""), current_command(nullptr), jobs_list(new JobsList())
+SmallShell::SmallShell() : prompt("smash> "), last_wd(""), current_command(nullptr), jobs_list(new JobsList())
 {
 }
 
@@ -1437,7 +1437,7 @@ void SmallShell::changeChprompt(const char *cmd_line)
 
 void SmallShell::printPrompt() const
 {
-    std::cout << prompt << " " << std::endl;
+    std::cout << prompt;
 }
 
 void SmallShell::addJob(shared_ptr<Command> cmd, bool is_stopped)
