@@ -8,7 +8,6 @@
 #include <memory>
 #include <fcntl.h>
 
-
 #define COMMAND_ARGS_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
 
@@ -25,7 +24,7 @@ protected:
 
 public:
   Command(const char *cmd_line);
-  virtual ~Command();
+  virtual ~Command() = default;
   virtual void execute() = 0;
   //  virtual void preparePd(Command*,bool);
   // virtual void cleanup();
@@ -49,7 +48,7 @@ class BuiltInCommand : public Command
 {
 public:
   BuiltInCommand(const char *cmd_line) : Command(cmd_line){};
-  virtual ~BuiltInCommand()=default;
+  virtual ~BuiltInCommand() = default;
 };
 
 class ExternalCommand : public Command
@@ -57,7 +56,7 @@ class ExternalCommand : public Command
 
 public:
   ExternalCommand(const char *cmd_line) : Command(cmd_line) { external = true; }
-  virtual ~ExternalCommand()=default;
+  virtual ~ExternalCommand() = default;
   void execute() override;
 };
 
@@ -74,8 +73,8 @@ protected:
 
 public:
   PipeCommand(const char *cmd_line, std::string);
-  virtual ~PipeCommand()=default;
-  void execute()override{};
+  virtual ~PipeCommand() = default;
+  void execute() override{};
   void execute(int);
   void prepareWrite(int);
   void prepareRead();
@@ -112,10 +111,10 @@ protected:
 
 public:
   explicit RedirectionCommand(const char *cmd_line, std::string); // Command::Command(cmd_line)
-  virtual ~RedirectionCommand()=default;
+  virtual ~RedirectionCommand() = default;
   void execute() override;
   void prepareGeneral(bool);
-  virtual void prepare();
+  virtual void prepare() = 0;
   void cleanup();
 };
 
@@ -137,7 +136,7 @@ class ChangeDirCommand : public BuiltInCommand
 {
 public:
   ChangeDirCommand(const char *cmd_line) : BuiltInCommand(cmd_line){};
-  virtual ~ChangeDirCommand() =default;
+  virtual ~ChangeDirCommand() = default;
   void execute() override;
 };
 
@@ -145,7 +144,7 @@ class GetCurrDirCommand : public BuiltInCommand
 {
 public:
   GetCurrDirCommand(const char *cmd_line) : BuiltInCommand(cmd_line){};
-  virtual ~GetCurrDirCommand() =default;
+  virtual ~GetCurrDirCommand() = default;
   void execute() override;
 };
 
@@ -153,8 +152,8 @@ class ShowPidCommand : public BuiltInCommand
 {
 private:
 public:
-  ShowPidCommand(const char *cmd_line) :BuiltInCommand(cmd_line){};
-  virtual ~ShowPidCommand() =default;
+  ShowPidCommand(const char *cmd_line) : BuiltInCommand(cmd_line){};
+  virtual ~ShowPidCommand() = default;
   void execute() override;
 };
 
@@ -166,7 +165,7 @@ class QuitCommand : public BuiltInCommand
 
 public:
   QuitCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line), jobs(jobs){};
-  virtual ~QuitCommand() =default;
+  virtual ~QuitCommand() = default;
   void execute() override;
 };
 
@@ -208,7 +207,8 @@ public:
 
 public:
   JobsList();
-  ~JobsList()=default;;
+  ~JobsList() = default;
+  ;
 
   //  getters
   JobEntry *getJobById(int jobId);
@@ -231,7 +231,7 @@ class JobsCommand : public BuiltInCommand
 
 public:
   JobsCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line), jobs(jobs){};
-  virtual ~JobsCommand() =default;
+  virtual ~JobsCommand() = default;
   void execute() override;
 };
 
@@ -242,7 +242,7 @@ class ForegroundCommand : public BuiltInCommand
 
 public:
   ForegroundCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line), jobs(jobs){};
-  virtual ~ForegroundCommand() =default;
+  virtual ~ForegroundCommand() = default;
   void execute() override;
 };
 
@@ -252,8 +252,8 @@ class BackgroundCommand : public BuiltInCommand
   JobsList *jobs;
 
 public:
-  BackgroundCommand(const char *cmd_line, JobsList *jobs) :BuiltInCommand(cmd_line), jobs(jobs){};
-  virtual ~BackgroundCommand() =default;
+  BackgroundCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line), jobs(jobs){};
+  virtual ~BackgroundCommand() = default;
   void execute() override;
 };
 
@@ -261,7 +261,7 @@ class ChmodCommand : public BuiltInCommand
 {
 public:
   ChmodCommand(const char *cmd_line) : BuiltInCommand(cmd_line){};
-  virtual ~ChmodCommand() =default;
+  virtual ~ChmodCommand() = default;
   void execute() override;
 };
 
@@ -269,7 +269,7 @@ class GetFileTypeCommand : public BuiltInCommand
 {
 public:
   GetFileTypeCommand(const char *cmd_line) : BuiltInCommand(cmd_line){};
-  virtual ~GetFileTypeCommand() =default;
+  virtual ~GetFileTypeCommand() = default;
   void execute() override;
 };
 
@@ -280,7 +280,7 @@ class SetcoreCommand : public BuiltInCommand
 
 public:
   SetcoreCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line), jobs(jobs){};
-  virtual ~SetcoreCommand() =default;
+  virtual ~SetcoreCommand() = default;
   void execute() override;
 };
 
@@ -291,7 +291,7 @@ class KillCommand : public BuiltInCommand
 
 public:
   KillCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line), jobs(jobs){};
-  virtual ~KillCommand() =default;
+  virtual ~KillCommand() = default;
   void execute() override;
 };
 
@@ -305,9 +305,9 @@ class TimeoutCommand : public BuiltInCommand
 
 public:
   explicit TimeoutCommand(const char *cmd_line);
-  virtual ~TimeoutCommand() =default;
+  virtual ~TimeoutCommand() = default;
   void execute() override;
-  int getTime() const;
+  int getTime() const { return dest_time; };
 };
 
 class TimeOutList
@@ -348,7 +348,7 @@ public:
     // Instantiated on first use.
     return instance;
   }
-  ~SmallShell();
+  ~SmallShell() = default;
 
   //  aux
   void executeCommand(const char *cmd_line);
@@ -377,129 +377,113 @@ bool isPipe(std::string cmd_str);
 
 ///------------------------------------------exceptions-----------------------------
 
-
 class InvaildArgument : public std::exception
 {
 private:
-    std::string error_str;
+  std::string error_str;
 
 public:
-    InvaildArgument(std::string error_type) : error_str("smash error: " + error_type + ": invalid arguments") {}
-    const char *what() const noexcept
-    {
-        return error_str.c_str();
-    }
+  InvaildArgument(std::string error_type) : error_str("smash error: " + error_type + ": invalid arguments") {}
+  const char *what() const noexcept
+  {
+    return error_str.c_str();
+  }
 };
 
 class TooManyArguments : public std::exception
 {
-    std::string error_str;
+  std::string error_str;
 
 public:
-    TooManyArguments(std::string error_type) : error_str("smash error: " + error_type + ": too many arguments") {}
-    const char *what() const noexcept
-    {
-        return error_str.c_str();
-    }
+  TooManyArguments(std::string error_type) : error_str("smash error: " + error_type + ": too many arguments") {}
+  const char *what() const noexcept
+  {
+    return error_str.c_str();
+  }
 };
-
 
 struct SystemCallFailed : public std::exception
 {
-    std::string error_str;
+  std::string error_str;
 
 public:
-    SystemCallFailed(std::string error_type) : error_str("smash error: " + error_type + " failed") {}
-    const char *what() const noexcept
-    {
-        return error_str.c_str();
-    }
+  SystemCallFailed(std::string error_type) : error_str("smash error: " + error_type + " failed") {}
+  const char *what() const noexcept
+  {
+    return error_str.c_str();
+  }
 };
 
 class OldPWDNotSet : public std::exception
 {
-    std::string error_str;
+  std::string error_str;
+
 public:
-    OldPWDNotSet(): error_str("smash error: cd: OLDPWD not set"){}
-    const char *what() const noexcept
-    {
-        return error_str.c_str();
-    }
+  OldPWDNotSet() : error_str("smash error: cd: OLDPWD not set") {}
+  const char *what() const noexcept
+  {
+    return error_str.c_str();
+  }
 };
 
 struct JobIdDoesntExist : public std::exception
 {
-    std::string error_str;
+  std::string error_str;
 
 public:
-    JobIdDoesntExist(std::string error_type, int job_id) : error_str("smash error: " + error_type + ": "+ std::to_string(job_id)+ " does not exist") {}
-    const char *what() const noexcept
-    {
-        return error_str.c_str();
-    }
+  JobIdDoesntExist(std::string error_type, int job_id) : error_str("smash error: " + error_type + ": " + std::to_string(job_id) + " does not exist") {}
+  const char *what() const noexcept
+  {
+    return error_str.c_str();
+  }
 };
 
 struct JobsListEmpty : public std::exception
 {
-    std::string error_str;
+  std::string error_str;
 
 public:
-    JobsListEmpty() : error_str("smash error: fg: jobs list is empty") {}
-    const char *what() const noexcept
-    {
-        return error_str.c_str();
-    }
+  JobsListEmpty() : error_str("smash error: fg: jobs list is empty") {}
+  const char *what() const noexcept
+  {
+    return error_str.c_str();
+  }
 };
 
 struct JobAlreadyRunning : public std::exception
 {
-    std::string error_str;
+  std::string error_str;
 
 public:
-    JobAlreadyRunning(int job_id) : error_str("smash error: bg: job-id "+ std::to_string(job_id)+" is already running in the background") {}
-    const char *what() const noexcept
-    {
-        return error_str.c_str();
-    }
+  JobAlreadyRunning(int job_id) : error_str("smash error: bg: job-id " + std::to_string(job_id) + " is already running in the background") {}
+  const char *what() const noexcept
+  {
+    return error_str.c_str();
+  }
 };
 
 struct NoStoppedJobs : public std::exception
 {
-    std::string error_str;
+  std::string error_str;
 
 public:
-    NoStoppedJobs() : error_str("smash error: bg: there is no stopped jobs to resume") {}
-    const char *what() const noexcept
-    {
-        return error_str.c_str();
-    }
+  NoStoppedJobs() : error_str("smash error: bg: there is no stopped jobs to resume") {}
+  const char *what() const noexcept
+  {
+    return error_str.c_str();
+  }
 };
 
 struct InvaildCoreNumber : public std::exception
 {
-    std::string error_str;
+  std::string error_str;
 
 public:
-    InvaildCoreNumber() : error_str("smash error: setcore: invalid core number") {}
-    const char *what() const noexcept
-    {
-        return error_str.c_str();
-    }
+  InvaildCoreNumber() : error_str("smash error: setcore: invalid core number") {}
+  const char *what() const noexcept
+  {
+    return error_str.c_str();
+  }
 };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 #endif // SMASH_COMMAND_H_
