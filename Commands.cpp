@@ -5,13 +5,13 @@
 #include <sstream>
 #include <sched.h>
 #include <sys/wait.h>
- #include <sys/stat.h>
+#include <sys/stat.h>
 #include <iomanip>
 #include "Commands.h"
 #include <signal.h>
 #include <sys/types.h>
 #include <memory>
-//#include "./Exeptions.h"
+// #include "./Exeptions.h"
 #include <thread>
 
 #define SIGKILL 9
@@ -48,7 +48,6 @@ string _trim(const std::string &s)
 {
     return _rtrim(_ltrim(s));
 }
-
 
 void _reformatArgsVec(char **args, vector<string> vec)
 {
@@ -147,7 +146,7 @@ SmallShell::SmallShell() : prompt("smash"), last_wd(""), current_command(nullptr
 
 // Command
 
-Command::Command(const char *cmd_line) : job_id(-1), process_id(getpid()), cmd_l(cmd_line), args_vec()
+Command::Command(const char *cmd_line) : job_id(-1), process_id(getpid()), cmd_l(cmd_line), external(false), args_vec()
 {
     args_vec = get_args_in_vec(cmd_l);
 };
@@ -214,7 +213,6 @@ void RedirectionNormalCommand::prepare()
 {
     bool write_with_append = false;
     RedirectionCommand::prepareGeneral(write_with_append);
-
 }
 
 void RedirectionAppendCommand::prepare()
@@ -343,7 +341,7 @@ void PipeCommand::execute(int pid_num)
     }
 
     // wait for the "read-son" to finish reading
-    waitpid(pid1, nullptr,0);
+    waitpid(pid1, nullptr, 0);
 
     // restoring the FDT for smash
     cleanUp();
@@ -487,7 +485,7 @@ void SmallShell::executeCommand(const char *cmd_line)
             if (!(_isBackgroundCommand(cmd_line)))
             {
                 current_command = cmd;
-                waitpid(pid, nullptr,0);
+                waitpid(pid, nullptr, 0);
                 current_command = (nullptr);
             }
 
@@ -777,7 +775,7 @@ void bringCommandToForegound(int job_id, JobsList *jobs)
         smash.setCurrentCommand(job_to_cont->getCommand());
 
         //  wait for process to finish
-        waitpid(pid, nullptr,0);
+        waitpid(pid, nullptr, 0);
 
         //  delete current process from current command
         smash.setCurrentCommand(nullptr);
@@ -1123,7 +1121,6 @@ void ChmodCommand::execute()
             throw e;
         }
     }
-
 }
 //<--------------------------- execute functions - end--------------------------->
 
@@ -1281,7 +1278,7 @@ void JobsList::killAllJobs()
 void JobsList::removeFinishedJobs()
 {
     std::vector<int> jobs_to_delete;
-    for (int i = 0; i< int(jobs.size()); i++)
+    for (int i = 0; i < int(jobs.size()); i++)
     {
         //  check if a process is finished
         if (waitpid(jobs[i]->getCommand()->getProcessId(), nullptr, WNOHANG))
@@ -1458,7 +1455,7 @@ void SmallShell::handleAlarm()
     timeOutList->handleSignal();
 }
 
-TimeoutCommand::TimeoutCommand(const char *cmd_line) :BuiltInCommand(cmd_line)
+TimeoutCommand::TimeoutCommand(const char *cmd_line) : BuiltInCommand(cmd_line)
 {
     SmallShell &smash = SmallShell::getInstance();
     string target_cmd_str = "";
