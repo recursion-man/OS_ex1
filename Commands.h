@@ -115,7 +115,7 @@ public:
   virtual ~RedirectionCommand()=default;
   void execute() override;
   void prepareGeneral(bool);
-  virtual void prepare();
+  virtual void prepare()=0;
   void cleanup();
 };
 
@@ -207,7 +207,7 @@ public:
   std::vector<std::shared_ptr<JobEntry>> jobs;
 
 public:
-  JobsList();
+  JobsList(): jobs(){};
   ~JobsList()=default;;
 
   //  getters
@@ -348,7 +348,7 @@ public:
     // Instantiated on first use.
     return instance;
   }
-  ~SmallShell()=default;
+  ~SmallShell();
 
   //  aux
   void executeCommand(const char *cmd_line);

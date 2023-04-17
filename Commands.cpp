@@ -104,10 +104,11 @@ void _removeBackgroundSign(char *cmd_line)
     cmd_line[str.find_last_not_of(WHITESPACE, idx) + 1] = 0;
 }
 
-void removeBackgroundSignString(string str)
+
+void removeBackgroundSignString(string& str)
 {
     if (str.back() == '&')
-        str.erase(str.size(), 1);
+        str.erase(str.size()-1, 1);
 }
 
 //<---------------------------stuff functions - end --------------------------->
@@ -140,8 +141,13 @@ bool isStringNumber(std::string str)
 //<---------------------------C'tors and D'tors--------------------------->
 
 // Small Shell
-SmallShell::SmallShell() : prompt("smash"), last_wd(""), current_command(nullptr), jobs_list()
+SmallShell::SmallShell() : prompt("smash"), last_wd(""), current_command(nullptr), jobs_list(new JobsList())
 {
+}
+
+SmallShell::~SmallShell()
+{
+    delete jobs_list;
 }
 
 // Command
@@ -627,7 +633,7 @@ void ExternalCommand::execute()
     // removing & sign
     if (_isBackgroundCommand(cmd_l))
     {
-        removeBackgroundSignString(args_vec.back().c_str());
+        removeBackgroundSignString(args_vec.back());
     }
     // parse path depending on Command type (Simple or Complex)
     // inserting "-c" for Complex Command
