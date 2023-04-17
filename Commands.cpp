@@ -1,18 +1,18 @@
-// #include <unistd.h>
+#include <unistd.h>
 #include <string.h>
 #include <iostream>
 #include <vector>
 #include <sstream>
-// #include <sched.h>
-// #include <sys/wait.h>
-// #include <sys/stat.h>
+#include <sched.h>
+#include <sys/wait.h>
+ #include <sys/stat.h>
 #include <iomanip>
 #include "Commands.h"
 #include <signal.h>
 #include <sys/types.h>
 #include <memory>
-#include "./Exeptions.h"
-// #include <thread>
+//#include "./Exeptions.h"
+#include <thread>
 
 #define SIGKILL 9
 using namespace std;
@@ -52,7 +52,7 @@ string _trim(const std::string &s)
 
 void _reformatArgsVec(char **args, vector<string> vec)
 {
-    for (int i = 0; i < vec.size(); i++)
+    for (int i = 0; i < int(vec.size()); i++)
     {
         args[i] = new char[vec[i].size() + 1];
         memset(args[i], 0, vec[i].size() + 1);
@@ -130,7 +130,7 @@ bool _isSimpleExternal(std::string str)
 // Checks if a given string is made of digits only
 bool isStringNumber(std::string str)
 {
-    for (int i = 0; i < str.size(); i++)
+    for (int i = 0; i < int(str.size()); i++)
     {
         if (!isdigit(str[i]))
             return false;
@@ -152,14 +152,14 @@ Command::Command(const char *cmd_line) : job_id(-1), process_id(getpid()), cmd_l
     args_vec = get_args_in_vec(cmd_l);
 };
 
-RedirectionCommand::RedirectionCommand(const char *cmd_line, string sign) : Command::Command(cmd_line)
+RedirectionCommand::RedirectionCommand(const char *cmd_line, string sign) : Command(cmd_line)
 {
     SmallShell &smash = SmallShell::getInstance();
 
     // finding the > / >> sign and validating arguments
     string cmd_str = string(cmd_line);
     int sign_index = cmd_str.find(sign);
-    if (sign_index == 0 || sign_index == cmd_str.size() + 1)
+    if (sign_index == 0 || sign_index == int(cmd_str.size()) + 1)
     {
         InvaildArgument e(sign);
         throw e;
@@ -196,7 +196,7 @@ void RedirectionCommand::execute()
         // ------------father----------//
         else
         {
-            waitpid(pid);
+            waitpid(pid, nullptr, 0);
         }
     }
 
@@ -265,12 +265,12 @@ void RedirectionCommand::cleanup()
     }
 }
 
-PipeCommand::PipeCommand(const char *cmd_line, string sign) : Command::Command(cmd_line)
+PipeCommand::PipeCommand(const char *cmd_line, string sign) : Command(cmd_line)
 {
     SmallShell &smash = SmallShell::getInstance();
     string cmd_str = string(cmd_line);
     int sign_index = cmd_str.find(sign);
-    if (sign_index == 0 || sign_index == cmd_str.size() + 1)
+    if (sign_index == 0 || sign_index == int(cmd_str.size()) + 1)
     {
         InvaildArgument e(sign);
         throw e;
@@ -335,7 +335,7 @@ void PipeCommand::execute(int pid_num)
             write_command->execute();
         }
         // wait for the "write-son" to finish writing
-        waitpid(pid2);
+        waitpid(pid2, nullptr, 0);
     }
     else
     {
@@ -343,7 +343,7 @@ void PipeCommand::execute(int pid_num)
     }
 
     // wait for the "read-son" to finish reading
-    waitpid(pid1);
+    waitpid(pid1, nullptr,0);
 
     // restoring the FDT for smash
     cleanUp();
@@ -487,7 +487,7 @@ void SmallShell::executeCommand(const char *cmd_line)
             if (!(_isBackgroundCommand(cmd_line)))
             {
                 current_command = cmd;
-                waitpid(pid);
+                waitpid(pid, nullptr,0);
                 current_command = (nullptr);
             }
 
@@ -557,7 +557,7 @@ void ChangeDirCommand::execute()
     std::string new_dir;
 
     //  Check amount of arguments
-    if (args_vec.size() != 2)
+    if (int(args_vec.size()) != 2)
     {
         TooManyArguments e("cd");
         throw e;
@@ -656,14 +656,14 @@ void JobsCommand::execute()
 
 void BackgroundCommand::execute()
 {
-    if (args_vec.size() != 2 || args_vec.size() != 1)
+    if (int(args_vec.size()) != 2 || args_vec.size() != 1)
     {
         InvaildArgument e("bg");
         throw e;
     }
 
     // if a specific job was given
-    if (args_vec.size() == 2)
+    if (int(args_vec.size()) == 2)
     {
         int job_id_to_find;
 
@@ -777,8 +777,7 @@ void bringCommandToForegound(int job_id, JobsList *jobs)
         smash.setCurrentCommand(job_to_cont->getCommand());
 
         //  wait for process to finish
-        int *status;
-        waitpid(pid, status);
+        waitpid(pid, nullptr,0);
 
         //  delete current process from current command
         smash.setCurrentCommand(nullptr);
@@ -793,13 +792,13 @@ void bringCommandToForegound(int job_id, JobsList *jobs)
 void ForegroundCommand::execute()
 {
     //  no specific job required
-    if (args_vec.size() == 1)
+    if (int(args_vec.size()) == 1)
     {
         bringCommandToForegound(0, jobs);
     }
 
     //    specific job required
-    else if (args_vec.size() == 2)
+    else if (int(args_vec.size()) == 2)
     {
         int job_id_to_find;
 
@@ -836,7 +835,7 @@ void QuitCommand::execute()
     std::vector<std::string> args = get_args_in_vec(this->cmd_l);
 
     //  check if 'kill' was given as an argument
-    for (int i = 1; i < args.size(); i++)
+    for (int i = 1; i < int(args.size()); i++)
     {
         if (args[i] == "kill")
         {
@@ -881,7 +880,7 @@ int getSignalNumber(std::string str)
 void KillCommand::execute()
 {
     //  check amount of arguments
-    if (args_vec.size() != 3)
+    if (int(args_vec.size()) != 3)
     {
         InvaildArgument e("kill");
         throw e;
@@ -972,7 +971,7 @@ void KillCommand::execute()
 void SetcoreCommand::execute()
 {
     //  checks amount of arguments
-    if (args_vec.size() != 3)
+    if (int(args_vec.size()) != 3)
     {
         InvaildArgument e("setcore");
         throw e;
@@ -1042,7 +1041,7 @@ void GetFileTypeCommand::execute()
 {
 
     // check amount of arguments
-    if (args_vec.size() != 2)
+    if (int(args_vec.size()) != 2)
     {
         InvaildArgument e("gettype");
         throw e;
@@ -1110,7 +1109,7 @@ bool isChmodArgsValid(const string args)
 
 void ChmodCommand::execute()
 {
-    if (args_vec.size() != 3 || !isChmodArgsValid(args_vec[1]))
+    if (int(args_vec.size()) != 3 || !isChmodArgsValid(args_vec[1]))
     {
         InvaildArgument e("chmod");
         throw e;
@@ -1147,7 +1146,7 @@ void JobsList::JobEntry::printInfo() const
 int JobsList::getMaxId() const
 {
     int max_id = 0;
-    for (int i = 0; i < jobs.size(); i++)
+    for (int i = 0; i < int(jobs.size()); i++)
     {
         if (jobs[i]->getJobId() > max_id)
         {
@@ -1181,7 +1180,7 @@ void JobsList::addJob(shared_ptr<Command> command, bool isStopped)
         //<----------- command was in the jobs list before ----------->
 
         //  find the job in the jobs list
-        for (int i = 0; i < jobs.size(); i++)
+        for (int i = 0; i < int(jobs.size()); i++)
         {
             if (jobs[i]->getJobId() == command->getJobId())
             {
@@ -1196,7 +1195,7 @@ void JobsList::addJob(shared_ptr<Command> command, bool isStopped)
 void JobsList::removeJobById(int jobId)
 {
     //  find job and remove it from the jobs list's vector
-    for (int i = 0; i < jobs.size(); i++)
+    for (int i = 0; i < int(jobs.size()); i++)
     {
         if (jobs[i]->getJobId() == jobId)
         {
@@ -1209,7 +1208,7 @@ void JobsList::removeJobById(int jobId)
 JobsList::JobEntry *JobsList::getJobById(int jobId)
 {
 
-    for (int i = 0; i < jobs.size(); i++)
+    for (int i = 0; i < int(jobs.size()); i++)
     {
         if (jobs[i]->getJobId() == jobId)
         {
@@ -1221,7 +1220,7 @@ JobsList::JobEntry *JobsList::getJobById(int jobId)
 
 JobsList::JobEntry *JobsList::getLastJob(int *lastJobId)
 {
-    if (jobs.size() == 0)
+    if (int(jobs.size()) == 0)
         return nullptr;
     return jobs.back().get();
 }
@@ -1244,7 +1243,7 @@ JobsList::JobEntry *JobsList::getLastStoppedJob(int *jobId)
 
 void JobsList::printJobsList()
 {
-    for (int i = 0; i < jobs.size(); i++)
+    for (int i = 0; i < int(jobs.size()); i++)
     {
         jobs[i]->printInfo();
     }
@@ -1257,7 +1256,7 @@ void JobsList::killAllJobs()
 
     // print info according to assignment
     std::cout << " sending SIGKILL signal to " << jobs.size() << " jobs:" << std::endl;
-    for (int i = 0; i < jobs.size(); i++)
+    for (int i = 0; i < int(jobs.size()); i++)
     {
         std::cout << jobs[i]->getCommand()->getProcessId() << ": " << jobs[i]->getCommand()->getCmdL() << std::endl;
     }
@@ -1282,7 +1281,7 @@ void JobsList::killAllJobs()
 void JobsList::removeFinishedJobs()
 {
     std::vector<int> jobs_to_delete;
-    for (int i = 0; jobs.size(); i++)
+    for (int i = 0; i< int(jobs.size()); i++)
     {
         //  check if a process is finished
         if (waitpid(jobs[i]->getCommand()->getProcessId(), nullptr, WNOHANG))
@@ -1302,7 +1301,7 @@ void JobsList::removeFinishedJobs()
     }
 
     //  remove the finished jobs
-    for (int i = 0; i < jobs_to_delete.size(); i++)
+    for (int i = 0; i < int(jobs_to_delete.size()); i++)
     {
         this->removeJobById(jobs_to_delete[i]);
     }
@@ -1406,7 +1405,7 @@ shared_ptr<Command> SmallShell::CreateCommand(const char *cmd_line)
 void SmallShell::changeChprompt(const char *cmd_line)
 {
     vector<string> args = get_args_in_vec(cmd_line);
-    string new_prompt = args.size() == 1 ? "smash> " : (args[1] + "> ");
+    string new_prompt = int(args.size()) == 1 ? "smash> " : (args[1] + "> ");
     prompt = new_prompt;
 }
 
@@ -1459,11 +1458,11 @@ void SmallShell::handleAlarm()
     timeOutList->handleSignal();
 }
 
-TimeoutCommand::TimeoutCommand(const char *cmd_line) : BuiltInCommand::BuiltInCommand(cmd_line)
+TimeoutCommand::TimeoutCommand(const char *cmd_line) :BuiltInCommand(cmd_line)
 {
     SmallShell &smash = SmallShell::getInstance();
     string target_cmd_str = "";
-    for (int i = 2; i < args_vec.size(); i++)
+    for (int i = 2; i < int(args_vec.size()); i++)
         target_cmd_str += args_vec[i];
 
     target_cmd = smash.CreateCommand(target_cmd_str.c_str());
@@ -1501,8 +1500,8 @@ void TimeoutCommand::execute()
 
         if (!(_isBackgroundCommand(target_cmd->getCmdL())))
         {
-            smash.setCurrentCommand(target_cmd.get());
-            waitpid(pid);
+            smash.setCurrentCommand(target_cmd);
+            waitpid(pid, nullptr, 0);
             smash.setCurrentCommand(nullptr);
         }
     }

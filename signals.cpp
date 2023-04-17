@@ -2,7 +2,7 @@
 #include <signal.h>
 #include "signals.h"
 #include "Commands.h"
-#include "Exeptions.h"
+//#include "Exeptions.h"
 
 using namespace std;
 

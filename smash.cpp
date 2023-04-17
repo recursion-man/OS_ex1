@@ -1,20 +1,13 @@
 #include <iostream>
-// #include <unistd.h>
-// #include <sys/wait.h>
+#include <unistd.h>
+#include <sys/wait.h>
 #include <signal.h>
 #include "Commands.h"
 #include "signals.h"
-#include "Exeptions.h"
+//#include "Exeptions.h"
 
 
 extern char *strsignal(int sig);
-
-
-
-
-
-
-
 
 int main(int argc, char *argv[])
 {
@@ -28,8 +21,8 @@ int main(int argc, char *argv[])
     }
 
     struct sigaction new_action;
-    action.sa_handler = &alarmHandler;
-    action.sa_flags = SA_RESTART;
+    new_action.sa_handler = &alarmHandler;
+    new_action.sa_flags = SA_RESTART;
     if (sigaction(SIGALRM, &new_action, NULL) < 0 )
         perror("smash error: failed to set alarm");
 

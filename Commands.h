@@ -6,6 +6,8 @@
 #include <string>
 #include <list>
 #include <memory>
+#include <fcntl.h>
+
 
 #define COMMAND_ARGS_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
@@ -46,7 +48,7 @@ public:
 class BuiltInCommand : public Command
 {
 public:
-  BuiltInCommand(const char *cmd_line) : Command::Command(cmd_line){};
+  BuiltInCommand(const char *cmd_line) : Command(cmd_line){};
   virtual ~BuiltInCommand() {}
 };
 
@@ -54,7 +56,7 @@ class ExternalCommand : public Command
 {
 
 public:
-  ExternalCommand(const char *cmd_line) : Command::Command(cmd_line) { external = true; }
+  ExternalCommand(const char *cmd_line) : Command(cmd_line) { external = true; }
   virtual ~ExternalCommand() {}
   void execute() override;
 };
@@ -82,14 +84,14 @@ public:
 class PipeNormalCommand : public PipeCommand
 {
 public:
-  PipeNormalCommand(const char *cmd_line) : PipeCommand::PipeCommand(cmd_line, "|") {}
+  PipeNormalCommand(const char *cmd_line) : PipeCommand(cmd_line, "|") {}
   void execute() override;
 };
 
 class PipeSterrCommand : public PipeCommand
 {
 public:
-  PipeSterrCommand(const char *cmd_line) : PipeCommand::PipeCommand(cmd_line, "|&") {}
+  PipeSterrCommand(const char *cmd_line) : PipeCommand(cmd_line, "|&") {}
   //    void prepareWrite() override;
   //    void prepareRead() override;
   void execute() override;
@@ -137,7 +139,7 @@ private:
   char **plastPwd;
 
 public:
-  ChangeDirCommand(const char *cmd_line) : BuiltInCommand::BuiltInCommand(cmd_line){};
+  ChangeDirCommand(const char *cmd_line) : BuiltInCommand(cmd_line){};
   virtual ~ChangeDirCommand() {}
   void execute() override;
 };
@@ -145,7 +147,7 @@ public:
 class GetCurrDirCommand : public BuiltInCommand
 {
 public:
-  GetCurrDirCommand(const char *cmd_line) : BuiltInCommand::BuiltInCommand(cmd_line){};
+  GetCurrDirCommand(const char *cmd_line) : BuiltInCommand(cmd_line){};
   virtual ~GetCurrDirCommand() {}
   void execute() override;
 };
@@ -153,7 +155,7 @@ public:
 class ShowPidCommand : public BuiltInCommand
 {
 public:
-  ShowPidCommand(const char *cmd_line) : BuiltInCommand::BuiltInCommand(cmd_line){};
+  ShowPidCommand(const char *cmd_line) :BuiltInCommand(cmd_line){};
   virtual ~ShowPidCommand() {}
   void execute() override;
 };
@@ -165,7 +167,7 @@ class QuitCommand : public BuiltInCommand
   JobsList *jobs;
 
 public:
-  QuitCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand::BuiltInCommand(cmd_line), jobs(jobs){};
+  QuitCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line), jobs(jobs){};
   virtual ~QuitCommand() {}
   void execute() override;
 };
@@ -230,7 +232,7 @@ class JobsCommand : public BuiltInCommand
   JobsList *jobs;
 
 public:
-  JobsCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand::BuiltInCommand(cmd_line), jobs(jobs){};
+  JobsCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line), jobs(jobs){};
   virtual ~JobsCommand() {}
   void execute() override;
 };
@@ -241,7 +243,7 @@ class ForegroundCommand : public BuiltInCommand
   JobsList *jobs;
 
 public:
-  ForegroundCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand::BuiltInCommand(cmd_line), jobs(jobs){};
+  ForegroundCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line), jobs(jobs){};
   virtual ~ForegroundCommand() {}
   void execute() override;
 };
@@ -252,7 +254,7 @@ class BackgroundCommand : public BuiltInCommand
   JobsList *jobs;
 
 public:
-  BackgroundCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand::BuiltInCommand(cmd_line), jobs(jobs){};
+  BackgroundCommand(const char *cmd_line, JobsList *jobs) :BuiltInCommand(cmd_line), jobs(jobs){};
   virtual ~BackgroundCommand() {}
   void execute() override;
 };
@@ -260,7 +262,7 @@ public:
 class ChmodCommand : public BuiltInCommand
 {
 public:
-  ChmodCommand(const char *cmd_line) : BuiltInCommand::BuiltInCommand(cmd_line){};
+  ChmodCommand(const char *cmd_line) : BuiltInCommand(cmd_line){};
   virtual ~ChmodCommand() {}
   void execute() override;
 };
@@ -268,7 +270,7 @@ public:
 class GetFileTypeCommand : public BuiltInCommand
 {
 public:
-  GetFileTypeCommand(const char *cmd_line) : BuiltInCommand::BuiltInCommand(cmd_line){};
+  GetFileTypeCommand(const char *cmd_line) : BuiltInCommand(cmd_line){};
   virtual ~GetFileTypeCommand() {}
   void execute() override;
 };
@@ -279,7 +281,7 @@ class SetcoreCommand : public BuiltInCommand
   JobsList *jobs;
 
 public:
-  SetcoreCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand::BuiltInCommand(cmd_line), jobs(jobs){};
+  SetcoreCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line), jobs(jobs){};
   virtual ~SetcoreCommand() {}
   void execute() override;
 };
@@ -290,7 +292,7 @@ class KillCommand : public BuiltInCommand
   JobsList *jobs;
 
 public:
-  KillCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand::BuiltInCommand(cmd_line), jobs(jobs){};
+  KillCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line), jobs(jobs){};
   virtual ~KillCommand() {}
   void execute() override;
 };
@@ -374,5 +376,132 @@ bool isAppendRedirect(std::string cmd_str);
 bool isSterrPipe(std::string cmd_str);
 bool isRedirect(std::string cmd_str);
 bool isPipe(std::string cmd_str);
+
+///------------------------------------------exceptions-----------------------------
+
+
+class InvaildArgument : public std::exception
+{
+private:
+    std::string error_str;
+
+public:
+    InvaildArgument(std::string error_type) : error_str("smash error: " + error_type + ": invalid arguments") {}
+    const char *what() const noexcept
+    {
+        return error_str.c_str();
+    }
+};
+
+class TooManyArguments : public std::exception
+{
+    std::string error_str;
+
+public:
+    TooManyArguments(std::string error_type) : error_str("smash error: " + error_type + ": too many arguments") {}
+    const char *what() const noexcept
+    {
+        return error_str.c_str();
+    }
+};
+
+
+struct SystemCallFailed : public std::exception
+{
+    std::string error_str;
+
+public:
+    SystemCallFailed(std::string error_type) : error_str("smash error: " + error_type + " failed") {}
+    const char *what() const noexcept
+    {
+        return error_str.c_str();
+    }
+};
+
+class OldPWDNotSet : public std::exception
+{
+    std::string error_str;
+public:
+    OldPWDNotSet(): error_str("smash error: cd: OLDPWD not set"){}
+    const char *what() const noexcept
+    {
+        return error_str.c_str();
+    }
+};
+
+struct JobIdDoesntExist : public std::exception
+{
+    std::string error_str;
+
+public:
+    JobIdDoesntExist(std::string error_type, int job_id) : error_str("smash error: " + error_type + ": "+ std::to_string(job_id)+ " does not exist") {}
+    const char *what() const noexcept
+    {
+        return error_str.c_str();
+    }
+};
+
+struct JobsListEmpty : public std::exception
+{
+    std::string error_str;
+
+public:
+    JobsListEmpty() : error_str("smash error: fg: jobs list is empty") {}
+    const char *what() const noexcept
+    {
+        return error_str.c_str();
+    }
+};
+
+struct JobAlreadyRunning : public std::exception
+{
+    std::string error_str;
+
+public:
+    JobAlreadyRunning(int job_id) : error_str("smash error: bg: job-id "+ std::to_string(job_id)+" is already running in the background") {}
+    const char *what() const noexcept
+    {
+        return error_str.c_str();
+    }
+};
+
+struct NoStoppedJobs : public std::exception
+{
+    std::string error_str;
+
+public:
+    NoStoppedJobs() : error_str("smash error: bg: there is no stopped jobs to resume") {}
+    const char *what() const noexcept
+    {
+        return error_str.c_str();
+    }
+};
+
+struct InvaildCoreNumber : public std::exception
+{
+    std::string error_str;
+
+public:
+    InvaildCoreNumber() : error_str("smash error: setcore: invalid core number") {}
+    const char *what() const noexcept
+    {
+        return error_str.c_str();
+    }
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #endif // SMASH_COMMAND_H_
