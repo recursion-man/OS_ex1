@@ -49,7 +49,7 @@ class BuiltInCommand : public Command
 {
 public:
   BuiltInCommand(const char *cmd_line) : Command(cmd_line){};
-  virtual ~BuiltInCommand() {}
+  virtual ~BuiltInCommand()=default;
 };
 
 class ExternalCommand : public Command
@@ -57,7 +57,7 @@ class ExternalCommand : public Command
 
 public:
   ExternalCommand(const char *cmd_line) : Command(cmd_line) { external = true; }
-  virtual ~ExternalCommand() {}
+  virtual ~ExternalCommand()=default;
   void execute() override;
 };
 
@@ -74,7 +74,8 @@ protected:
 
 public:
   PipeCommand(const char *cmd_line, std::string);
-  virtual ~PipeCommand() {}
+  virtual ~PipeCommand()=default;
+  void execute()override{};
   void execute(int);
   void prepareWrite(int);
   void prepareRead();
@@ -111,7 +112,7 @@ protected:
 
 public:
   explicit RedirectionCommand(const char *cmd_line, std::string); // Command::Command(cmd_line)
-  virtual ~RedirectionCommand();
+  virtual ~RedirectionCommand()=default;
   void execute() override;
   void prepareGeneral(bool);
   virtual void prepare();
@@ -122,25 +123,21 @@ class RedirectionAppendCommand : public RedirectionCommand
 {
 public:
   explicit RedirectionAppendCommand(const char *cmd_line) : RedirectionCommand(cmd_line, ">>"){};
-  void prepare();
+  void prepare() override;
 };
 
 class RedirectionNormalCommand : public RedirectionCommand
 {
 public:
   explicit RedirectionNormalCommand(const char *cmd_line) : RedirectionCommand(cmd_line, ">"){};
-  void prepare();
+  void prepare() override;
 };
 
 class ChangeDirCommand : public BuiltInCommand
 {
-private:
-  //  Holds the path to that last working directory
-  char **plastPwd;
-
 public:
   ChangeDirCommand(const char *cmd_line) : BuiltInCommand(cmd_line){};
-  virtual ~ChangeDirCommand() {}
+  virtual ~ChangeDirCommand() =default;
   void execute() override;
 };
 
@@ -148,15 +145,16 @@ class GetCurrDirCommand : public BuiltInCommand
 {
 public:
   GetCurrDirCommand(const char *cmd_line) : BuiltInCommand(cmd_line){};
-  virtual ~GetCurrDirCommand() {}
+  virtual ~GetCurrDirCommand() =default;
   void execute() override;
 };
 
 class ShowPidCommand : public BuiltInCommand
 {
+private:
 public:
   ShowPidCommand(const char *cmd_line) :BuiltInCommand(cmd_line){};
-  virtual ~ShowPidCommand() {}
+  virtual ~ShowPidCommand() =default;
   void execute() override;
 };
 
@@ -168,7 +166,7 @@ class QuitCommand : public BuiltInCommand
 
 public:
   QuitCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line), jobs(jobs){};
-  virtual ~QuitCommand() {}
+  virtual ~QuitCommand() =default;
   void execute() override;
 };
 
@@ -210,7 +208,7 @@ public:
 
 public:
   JobsList();
-  ~JobsList();
+  ~JobsList()=default;;
 
   //  getters
   JobEntry *getJobById(int jobId);
@@ -233,7 +231,7 @@ class JobsCommand : public BuiltInCommand
 
 public:
   JobsCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line), jobs(jobs){};
-  virtual ~JobsCommand() {}
+  virtual ~JobsCommand() =default;
   void execute() override;
 };
 
@@ -244,7 +242,7 @@ class ForegroundCommand : public BuiltInCommand
 
 public:
   ForegroundCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line), jobs(jobs){};
-  virtual ~ForegroundCommand() {}
+  virtual ~ForegroundCommand() =default;
   void execute() override;
 };
 
@@ -255,7 +253,7 @@ class BackgroundCommand : public BuiltInCommand
 
 public:
   BackgroundCommand(const char *cmd_line, JobsList *jobs) :BuiltInCommand(cmd_line), jobs(jobs){};
-  virtual ~BackgroundCommand() {}
+  virtual ~BackgroundCommand() =default;
   void execute() override;
 };
 
@@ -263,7 +261,7 @@ class ChmodCommand : public BuiltInCommand
 {
 public:
   ChmodCommand(const char *cmd_line) : BuiltInCommand(cmd_line){};
-  virtual ~ChmodCommand() {}
+  virtual ~ChmodCommand() =default;
   void execute() override;
 };
 
@@ -271,7 +269,7 @@ class GetFileTypeCommand : public BuiltInCommand
 {
 public:
   GetFileTypeCommand(const char *cmd_line) : BuiltInCommand(cmd_line){};
-  virtual ~GetFileTypeCommand() {}
+  virtual ~GetFileTypeCommand() =default;
   void execute() override;
 };
 
@@ -282,7 +280,7 @@ class SetcoreCommand : public BuiltInCommand
 
 public:
   SetcoreCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line), jobs(jobs){};
-  virtual ~SetcoreCommand() {}
+  virtual ~SetcoreCommand() =default;
   void execute() override;
 };
 
@@ -293,7 +291,7 @@ class KillCommand : public BuiltInCommand
 
 public:
   KillCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line), jobs(jobs){};
-  virtual ~KillCommand() {}
+  virtual ~KillCommand() =default;
   void execute() override;
 };
 
@@ -307,7 +305,7 @@ class TimeoutCommand : public BuiltInCommand
 
 public:
   explicit TimeoutCommand(const char *cmd_line);
-  virtual ~TimeoutCommand() {}
+  virtual ~TimeoutCommand() =default;
   void execute() override;
   int getTime() const;
 };
