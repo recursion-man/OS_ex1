@@ -374,10 +374,6 @@ void PipeCommand::cleanUp()
 
 //<---------------------------getters--------------------------->
 
-int TimeoutCommand::getTime() const
-{
-    return dest_time;
-}
 std::string SmallShell::get_last_wd() const
 {
     return last_wd;
