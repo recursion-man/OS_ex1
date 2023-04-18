@@ -17,14 +17,14 @@ class Command
 protected:
   int job_id;
   int process_id;
-  const char *cmd_l;
+  char *cmd_l;
   bool external;
   std::vector<std::string> args_vec;
   // std::shared_ptr<Command> shared_instance;
 
 public:
   Command(const char *cmd_line);
-  virtual ~Command() = default;
+  virtual ~Command();
   virtual void execute() = 0;
   //  virtual void preparePd(Command*,bool);
   // virtual void cleanup();

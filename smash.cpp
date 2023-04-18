@@ -4,8 +4,7 @@
 #include <signal.h>
 #include "Commands.h"
 #include "signals.h"
-//#include "Exeptions.h"
-
+// #include "Exeptions.h"
 
 extern char *strsignal(int sig);
 
@@ -23,9 +22,8 @@ int main(int argc, char *argv[])
     struct sigaction new_action;
     new_action.sa_handler = &alarmHandler;
     new_action.sa_flags = SA_RESTART;
-    if (sigaction(SIGALRM, &new_action, NULL) < 0 )
+    if (sigaction(SIGALRM, &new_action, NULL) < 0)
         perror("smash error: failed to set alarm");
-
 
     // TODO: setup sig alarm handler
 
@@ -35,12 +33,16 @@ int main(int argc, char *argv[])
         smash.printPrompt();
         std::string cmd_line;
         std::getline(std::cin, cmd_line);
-        try {
+        try
+        {
             smash.executeCommand(cmd_line.c_str());
         }
-        catch (SystemCallFailed& e)
-        { perror(e.what());}
-        catch (std::exception& e) {
+        catch (SystemCallFailed &e)
+        {
+            perror(e.what());
+        }
+        catch (std::exception &e)
+        {
             std::cout << e.what();
         }
     }

@@ -2,7 +2,7 @@
 #include <signal.h>
 #include "signals.h"
 #include "Commands.h"
-//#include "Exeptions.h"
+// #include "Exeptions.h"
 
 using namespace std;
 
@@ -39,6 +39,7 @@ void ctrlCHandler(int sig_num)
         //  update current command
         smash.setCurrentCommand(nullptr);
 
+        //  prints massage
         std::cout << "smash: process " << pid << " was killed" << std::endl;
       }
     }
@@ -75,6 +76,7 @@ void ctrlZHandler(int sig_num)
         //  update current command
         smash.setCurrentCommand(nullptr);
 
+        //  prints massage
         std::cout << "smash: process " << pid << " was stopped" << std::endl;
       }
     }

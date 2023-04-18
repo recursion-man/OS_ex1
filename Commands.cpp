@@ -104,11 +104,10 @@ void _removeBackgroundSign(char *cmd_line)
     cmd_line[str.find_last_not_of(WHITESPACE, idx) + 1] = 0;
 }
 
-
-void removeBackgroundSignString(string& str)
+void removeBackgroundSignString(string &str)
 {
     if (str.back() == '&')
-        str.erase(str.size()-1, 1);
+        str.erase(str.size() - 1, 1);
 }
 
 //<---------------------------stuff functions - end --------------------------->
@@ -152,10 +151,17 @@ SmallShell::~SmallShell()
 
 // Command
 
-Command::Command(const char *cmd_line) : job_id(-1), process_id(getpid()), cmd_l(cmd_line), external(false), args_vec()
+Command::Command(const char *cmd_line) : job_id(-1), process_id(getpid()), cmd_l(new char[sizeof(cmd_line) + 1]), external(false), args_vec()
 {
+
+    strcpy(cmd_l, cmd_line);
     args_vec = get_args_in_vec(cmd_l);
 };
+
+Command::~Command()
+{
+    delete cmd_l;
+}
 
 RedirectionCommand::RedirectionCommand(const char *cmd_line, string sign) : Command(cmd_line),
                                                                             base_command(nullptr), dest(), out_pd()
@@ -380,7 +386,6 @@ void PipeCommand::cleanUp()
 
 //<---------------------------getters--------------------------->
 
-
 int TimeoutCommand::getTime() const
 {
     return dest_time;
@@ -389,7 +394,6 @@ std::string SmallShell::get_last_wd() const
 {
     return last_wd;
 }
-
 
 const char *Command::getCmdL() const
 {
@@ -479,7 +483,6 @@ void SmallShell::executeCommand(const char *cmd_line)
     {
         cmd->execute();
     }
-
     ///--------------------------Bonus start----------------------------------------
     /// -----------------------------else if (cmd == TimeOut)----------------
     ///             {
@@ -511,7 +514,7 @@ void SmallShell::executeCommand(const char *cmd_line)
             if (!(_isBackgroundCommand(cmd_line)))
             {
                 current_command = cmd;
-                waitpid(pid, nullptr, 0);
+                waitpid(pid, nullptr, WUNTRACED);
                 current_command = (nullptr);
             }
 
@@ -625,6 +628,7 @@ void ChangeDirCommand::execute()
     {
         //  Save last working directory
         smash.set_last_wd(string(buffer));
+        std::cout << std::endl;
     }
 }
 
@@ -680,7 +684,7 @@ void JobsCommand::execute()
 
 void BackgroundCommand::execute()
 {
-    if (int(args_vec.size()) != 2 || args_vec.size() != 1)
+    if (int(args_vec.size()) != 2 && int(args_vec.size()) != 1)
     {
         InvaildArgument e("bg");
         throw e;
@@ -912,9 +916,10 @@ void KillCommand::execute()
 
     //  get the number of the signal
     int signal_num = getSignalNumber(args_vec[1]); // return -1 if the format is wrong
+    int job_id = isStringNumber(args_vec[2]);
 
     //  check if number is in range
-    if (signal_num > 0 && signal_num < 32)
+    if (signal_num > 0 && signal_num < 32 && job_id != -1)
     {
 
         //  get the job - if does not exist, nullptr will be returned
@@ -983,6 +988,7 @@ void KillCommand::execute()
                     throw e;
                 }
             }
+            std::cout << "signal number " << signal_num << " was sent to pid " << pid << std::endl;
         }
     }
     else
@@ -1183,7 +1189,6 @@ void JobsList::addJob(shared_ptr<Command> command, bool isStopped)
 {
     //  remove finished job before checking max id
     this->removeFinishedJobs();
-
     if (command->getJobId() == -1)
     {
         //<----------- command was Not in the jobs list before ----------->
@@ -1278,7 +1283,7 @@ void JobsList::killAllJobs()
     this->removeFinishedJobs();
 
     // print info according to assignment
-    std::cout << " sending SIGKILL signal to " << jobs.size() << " jobs:" << std::endl;
+    std::cout << "smash: sending SIGKILL signal to " << jobs.size() << " jobs:" << std::endl;
     for (int i = 0; i < int(jobs.size()); i++)
     {
         std::cout << jobs[i]->getCommand()->getProcessId() << ": " << jobs[i]->getCommand()->getCmdL() << std::endl;
@@ -1309,20 +1314,21 @@ void JobsList::removeFinishedJobs()
     for (int i = 0; i < int(jobs.size()); i++)
     {
         //  check if a process is finished
-        if (waitpid(jobs[i]->getCommand()->getProcessId(), nullptr, WNOHANG))
+        int pid = jobs[i]->getCommand()->getProcessId();
+        int res = waitpid(pid, nullptr, WNOHANG);
+        if (res > 0)
         {
             jobs_to_delete.push_back(jobs[i]->getJobId());
         }
-
         //  updates the stopped field in each job while we're here
-        if (waitpid(jobs[i]->getCommand()->getProcessId(), nullptr, WUNTRACED))
-        {
-            jobs[i]->setStopped(true);
-        }
-        else
-        {
-            jobs[i]->setStopped(false);
-        }
+        // if (waitpid(jobs[i]->getCommand()->getProcessId(), nullptr, WUNTRACED))
+        // {
+        //     jobs[i]->setStopped(true);
+        // }
+        // else
+        // {
+        //     jobs[i]->setStopped(false);
+        // }
     }
 
     //  remove the finished jobs
@@ -1391,6 +1397,10 @@ shared_ptr<Command> SmallShell::CreateCommand(const char *cmd_line)
     else if (firstWord.compare("cd") == 0)
     {
         return shared_ptr<Command>(new ChangeDirCommand(cmd_line));
+    }
+    else if (firstWord.compare("jobs") == 0)
+    {
+        return shared_ptr<Command>(new JobsCommand(cmd_line, this->jobs_list));
     }
     else if (firstWord.compare("bg") == 0)
     {
