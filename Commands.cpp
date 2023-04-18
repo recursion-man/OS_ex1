@@ -11,10 +11,9 @@
 #include <signal.h>
 #include <sys/types.h>
 #include <memory>
-// #include "./Exeptions.h"
 #include <thread>
+#include <errno.h>
 
-#define SIGKILL 9
 using namespace std;
 
 const std::string WHITESPACE = " \n\r\t\f\v";
@@ -160,7 +159,7 @@ Command::Command(const char *cmd_line) : job_id(-1), process_id(getpid()), cmd_l
 
 Command::~Command()
 {
-    delete cmd_l;
+    delete[] cmd_l;
 }
 
 RedirectionCommand::RedirectionCommand(const char *cmd_line, string sign) : Command(cmd_line),
@@ -208,7 +207,7 @@ void RedirectionCommand::execute()
         // ------------father----------//
         else
         {
-            waitpid(pid, nullptr, 0);
+            waitpid(pid, nullptr, WUNTRACED);
         }
     }
 
@@ -347,7 +346,7 @@ void PipeCommand::execute(int pid_num)
             write_command->execute();
         }
         // wait for the "write-son" to finish writing
-        waitpid(pid2, nullptr, 0);
+        waitpid(pid2, nullptr, WUNTRACED);
     }
     else
     {
@@ -355,7 +354,7 @@ void PipeCommand::execute(int pid_num)
     }
 
     // wait for the "read-son" to finish reading
-    waitpid(pid1, nullptr, 0);
+    waitpid(pid1, nullptr, WUNTRACED);
 
     // restoring the FDT for smash
     cleanUp();
@@ -628,7 +627,6 @@ void ChangeDirCommand::execute()
     {
         //  Save last working directory
         smash.set_last_wd(string(buffer));
-        std::cout << std::endl;
     }
 }
 
@@ -659,6 +657,7 @@ void ExternalCommand::execute()
     if (execv(args[0], args) == -1)
     {
         perror("smash error: execv failed");
+        // delete[] args; לשחרר זיכרון לפני שיוצאים?
         exit(1);
     }
 
@@ -779,6 +778,11 @@ input:
 */
 void bringCommandToForegound(int job_id, JobsList *jobs)
 {
+    if (jobs->isEmpty())
+    {
+        JobsListEmpty e;
+        throw e;
+    }
     //  get the job required - if the job_id doesn't exist, nullptr will be returned
     JobsList::JobEntry *job_to_cont = job_id == 0 ? jobs->getLastJob(nullptr) : jobs->getJobById(job_id);
 
@@ -805,14 +809,17 @@ void bringCommandToForegound(int job_id, JobsList *jobs)
         smash.setCurrentCommand(job_to_cont->getCommand());
 
         //  wait for process to finish
-        waitpid(pid, nullptr, 0);
+        waitpid(pid, nullptr, WUNTRACED);
+
+        //  remove job from jobsList
+        smash.removeJob(job_to_cont->getJobId());
 
         //  delete current process from current command
         smash.setCurrentCommand(nullptr);
     }
     else
     {
-        JobsListEmpty e;
+        JobIdDoesntExist e("fg", job_id);
         throw e;
     }
 }
@@ -837,12 +844,12 @@ void ForegroundCommand::execute()
         }
         else
         {
-            InvaildArgument e("bg");
+            InvaildArgument e("fg");
             throw e;
         }
         if (job_id_to_find <= 0)
         {
-            InvaildArgument e("bg");
+            InvaildArgument e("fg");
             throw e;
         }
         else
@@ -852,7 +859,7 @@ void ForegroundCommand::execute()
     }
     else
     {
-        InvaildArgument e("bg");
+        InvaildArgument e("fg");
         throw e;
     }
 }
@@ -877,6 +884,7 @@ void QuitCommand::execute()
     {
         jobs->killAllJobs();
     }
+    delete[] this->cmd_l;
     exit(0);
 }
 
@@ -921,15 +929,10 @@ void KillCommand::execute()
     {
         job_id = stoi(args_vec[2]);
     }
-    else
-    {
-        InvaildArgument e("kill");
-        throw e;
-    }
-
     //  check if number is in range
     if (signal_num > 0 && signal_num < 32 && job_id != -1)
     {
+
         //  get the job - if does not exist, nullptr will be returned
         JobsList::JobEntry *job = jobs->getJobById(job_id);
         if (job == nullptr)
@@ -943,7 +946,7 @@ void KillCommand::execute()
 
             //  Note : to check if there are more signal numbers that fit
             //  kill signals
-            if (signal_num == 9 || signal_num == 15 || signal_num == 6)
+            if (signal_num == 9 || signal_num == 15 || signal_num == 6 || signal_num == 2)
             {
                 if (kill(pid, signal_num) == -1)
                 {
@@ -958,7 +961,7 @@ void KillCommand::execute()
             }
 
             //  stop signals
-            else if (signal_num == 2 || signal_num == 19)
+            else if (signal_num == 19)
             {
                 if (kill(pid, signal_num) == -1)
                 {
@@ -1166,6 +1169,11 @@ void ChmodCommand::execute()
 
 //<--------------------------- Jobs List functions--------------------------->
 
+bool JobsList::isEmpty() const
+{
+    return int(this->jobs.size()) == 0;
+}
+
 void JobsList::JobEntry::printInfo() const
 {
     //  calculate the time passed
@@ -1174,9 +1182,10 @@ void JobsList::JobEntry::printInfo() const
 
     // get status of job
     string stopped_str = is_stopped ? "(stopped)" : "";
+    string cmd_l(command->getCmdL());
 
     //  print info
-    std::cout << "[" << command->getJobId() << "]" << command->getCmdL() << " : " << command->getProcessId() << " " << time_diff << " secs " << stopped_str << std::endl;
+    std::cout << "[" << command->getJobId() << "]" << cmd_l << " : " << command->getProcessId() << " " << time_diff << " secs " << stopped_str << std::endl;
 };
 
 //  returns the max id that is currently in the jobs list
@@ -1193,7 +1202,7 @@ int JobsList::getMaxId() const
     return max_id;
 }
 
-void JobsList::addJob(shared_ptr<Command> command, bool isStopped)
+void JobsList::addJob(shared_ptr<Command> command, bool is_stopped)
 {
     //  remove finished job before checking max id
     this->removeFinishedJobs();
@@ -1208,7 +1217,7 @@ void JobsList::addJob(shared_ptr<Command> command, bool isStopped)
         command->setJobId(job_id);
 
         //  add job
-        std::shared_ptr<JobEntry> new_job(new JobEntry(command, isStopped));
+        std::shared_ptr<JobEntry> new_job(new JobEntry(command, is_stopped));
         jobs.push_back(new_job);
     }
     else
@@ -1222,6 +1231,7 @@ void JobsList::addJob(shared_ptr<Command> command, bool isStopped)
             {
                 //  reset time to current time
                 jobs[i]->setTime();
+                jobs[i]->setStopped(is_stopped);
                 break;
             }
         }
@@ -1291,7 +1301,7 @@ void JobsList::killAllJobs()
     this->removeFinishedJobs();
 
     // print info according to assignment
-    std::cout << "smash: sending SIGKILL signal to " << jobs.size() << " jobs:";
+    std::cout << "smash: sending SIGKILL signal to " << jobs.size() << " jobs:" << std::endl;
     for (int i = 0; i < int(jobs.size()); i++)
     {
         std::cout << jobs[i]->getCommand()->getProcessId() << ": " << jobs[i]->getCommand()->getCmdL() << std::endl;
@@ -1545,7 +1555,7 @@ void TimeoutCommand::execute()
         if (!(_isBackgroundCommand(target_cmd->getCmdL())))
         {
             smash.setCurrentCommand(target_cmd);
-            waitpid(pid, nullptr, 0);
+            waitpid(pid, nullptr, WUNTRACED);
             smash.setCurrentCommand(nullptr);
         }
     }

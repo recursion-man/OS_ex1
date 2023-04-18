@@ -22,6 +22,8 @@ int main(int argc, char *argv[])
     struct sigaction new_action;
     new_action.sa_handler = &alarmHandler;
     new_action.sa_flags = SA_RESTART;
+    // sigemptyset(&new_action.sa_mask); // שני השורות האלה פותרים בעיה שיש בvalgrind
+    // sigaddset(&new_action.sa_mask, SIGINT);
     if (sigaction(SIGALRM, &new_action, NULL) < 0)
         perror("smash error: failed to set alarm");
 
@@ -46,5 +48,6 @@ int main(int argc, char *argv[])
             std::cout << e.what();
         }
     }
+
     return 0;
 }

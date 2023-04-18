@@ -37,6 +37,7 @@ void ctrlCHandler(int sig_num)
         }
 
         //  update current command
+
         smash.setCurrentCommand(nullptr);
 
         //  prints massage

@@ -214,6 +214,8 @@ public:
   JobEntry *getLastJob(int *lastJobId);
   JobEntry *getLastStoppedJob(int *jobId);
   int getMaxId() const;
+  bool isEmpty() const;
+
 
   //  aux
   void addJob(std::shared_ptr<Command> cmd, bool isStopped = false);
@@ -430,7 +432,7 @@ struct JobIdDoesntExist : public std::exception
   std::string error_str;
 
 public:
-  JobIdDoesntExist(std::string error_type, int job_id) : error_str("smash error: " + error_type + ": " + std::to_string(job_id) + " does not exist") {}
+  JobIdDoesntExist(std::string error_type, int job_id) : error_str("smash error: " + error_type + ": job-id " + std::to_string(job_id) + " does not exist") {}
   const char *what() const noexcept
   {
     return error_str.c_str();
@@ -451,14 +453,14 @@ public:
 
 struct JobAlreadyRunning : public std::exception
 {
-  std::string error_str;
+    std::string error_str;
 
 public:
-  JobAlreadyRunning(int job_id) : error_str("smash error: bg: job-id " + std::to_string(job_id) + " is already running in the background") {}
-  const char *what() const noexcept
-  {
-    return error_str.c_str();
-  }
+    JobAlreadyRunning(int job_id) : error_str("smash error: bg: job-id " + std::to_string(job_id) + " is already running in the background") {}
+    const char* what() const noexcept
+    {
+        return error_str.c_str();
+    }
 };
 
 struct NoStoppedJobs : public std::exception
