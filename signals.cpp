@@ -39,7 +39,8 @@ void ctrlCHandler(int sig_num)
         //  update current command
         smash.setCurrentCommand(nullptr);
 
-        std::cout << "smash: process " << pid << " was killed";
+        //  prints massage
+        std::cout << "smash: process " << pid << " was killed" << std::endl;
       }
     }
   }
@@ -75,7 +76,8 @@ void ctrlZHandler(int sig_num)
         //  update current command
         smash.setCurrentCommand(nullptr);
 
-        std::cout << "smash: process " << pid << " was stopped";
+        //  prints massage
+        std::cout << "smash: process " << pid << " was stopped" << std::endl;
       }
     }
   }
