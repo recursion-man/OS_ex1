@@ -916,12 +916,20 @@ void KillCommand::execute()
 
     //  get the number of the signal
     int signal_num = getSignalNumber(args_vec[1]); // return -1 if the format is wrong
-    int job_id = isStringNumber(args_vec[2]);
+    int job_id;
+    if (isStringNumber(args_vec[2]))
+    {
+        job_id = stoi(args_vec[2]);
+    }
+    else
+    {
+        InvaildArgument e("kill");
+        throw e;
+    }
 
     //  check if number is in range
     if (signal_num > 0 && signal_num < 32 && job_id != -1)
     {
-
         //  get the job - if does not exist, nullptr will be returned
         JobsList::JobEntry *job = jobs->getJobById(job_id);
         if (job == nullptr)
@@ -935,7 +943,7 @@ void KillCommand::execute()
 
             //  Note : to check if there are more signal numbers that fit
             //  kill signals
-            if (signal_num == 9 || signal_num == 15 || signal_num == 6)
+            if (signal_num == 9 || signal_num == 15 || signal_num == 6 || signal_num == 2)
             {
                 if (kill(pid, signal_num) == -1)
                 {
@@ -950,7 +958,7 @@ void KillCommand::execute()
             }
 
             //  stop signals
-            else if (signal_num == 2 || signal_num == 19)
+            else if (signal_num == 19)
             {
                 if (kill(pid, signal_num) == -1)
                 {
