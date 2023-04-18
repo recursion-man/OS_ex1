@@ -559,7 +559,7 @@ void SmallShell::executeCommand(const char *cmd_line)
 void ShowPidCommand::execute()
 {
     int process_id = getpid();
-    std::cout << "smash pid is " << process_id << std::endl;
+    std::cout << "smash pid is " << process_id;
 }
 
 void GetCurrDirCommand::execute()
@@ -569,7 +569,7 @@ void GetCurrDirCommand::execute()
     // get the current working directory
     if (getcwd(cwd, sizeof(cwd)) != NULL)
     {
-        std::cout << cwd << std::endl;
+        std::cout << cwd;
     }
     else
     {
@@ -720,7 +720,7 @@ void BackgroundCommand::execute()
                 job->setStopped(false);
 
                 //  printig the cmd_line of the command
-                std::cout << job->getCommand()->getCmdL() << std::endl;
+                std::cout << job->getCommand()->getCmdL();
 
                 // continue cammand without wating for it
                 if (kill(pid, SIGCONT) == -1)
@@ -753,7 +753,7 @@ void BackgroundCommand::execute()
             job->setStopped(false);
 
             //  printig the cmd_line of the command
-            std::cout << job->getCommand()->getCmdL() << std::endl;
+            std::cout << job->getCommand()->getCmdL();
 
             // continue cammand without wating for it
             if (kill(pid, SIGCONT) == -1)
@@ -786,7 +786,7 @@ void bringCommandToForegound(int job_id, JobsList *jobs)
     if (job_to_cont != nullptr)
     {
         //  print the cmd_line of the command
-        std::cout << job_to_cont->getCommand()->getCmdL() << std::endl;
+        std::cout << job_to_cont->getCommand()->getCmdL();
 
         int pid = job_to_cont->getCommand()->getProcessId();
 
@@ -1128,7 +1128,7 @@ void GetFileTypeCommand::execute()
     }
 
     //  print info
-    std::cout << path << "'s type is \"" << file_type << "\" and takes up " << file_size << " bytes" << std::endl;
+    std::cout << path << "'s type is \"" << file_type << "\" and takes up " << file_size << " bytes";
 }
 
 // assume chmod takes up to 4 args
@@ -1176,7 +1176,7 @@ void JobsList::JobEntry::printInfo() const
     string stopped_str = is_stopped ? "(stopped)" : "";
 
     //  print info
-    std::cout << "[" << command->getJobId() << "]" << command->getCmdL() << " : " << command->getProcessId() << " " << time_diff << " secs " << stopped_str << std::endl;
+    std::cout << "[" << command->getJobId() << "]" << command->getCmdL() << " : " << command->getProcessId() << " " << time_diff << " secs " << stopped_str;
 };
 
 //  returns the max id that is currently in the jobs list
@@ -1291,10 +1291,10 @@ void JobsList::killAllJobs()
     this->removeFinishedJobs();
 
     // print info according to assignment
-    std::cout << "smash: sending SIGKILL signal to " << jobs.size() << " jobs:" << std::endl;
+    std::cout << "smash: sending SIGKILL signal to " << jobs.size() << " jobs:";
     for (int i = 0; i < int(jobs.size()); i++)
     {
-        std::cout << jobs[i]->getCommand()->getProcessId() << ": " << jobs[i]->getCommand()->getCmdL() << std::endl;
+        std::cout << jobs[i]->getCommand()->getProcessId() << ": " << jobs[i]->getCommand()->getCmdL();
     }
 
     //  send kill signals to all processes
@@ -1437,6 +1437,10 @@ shared_ptr<Command> SmallShell::CreateCommand(const char *cmd_line)
     else if (firstWord.compare("chmod") == 0)
     {
         return shared_ptr<Command>(new ChmodCommand(cmd_line));
+    }
+    else if (firstWord.compare("jobs") == 0)
+    {
+        return shared_ptr<Command>(new JobsCommand(cmd_line, jobs_list));
     }
     else
     {
@@ -1582,7 +1586,7 @@ void TimeOutList::handleSignal()
             throw e;
         }
 
-        std::cout << "smash: " + string(next_cmd->getCmdL()) + " timed out!" << std::endl;
+        std::cout << "smash: " + string(next_cmd->getCmdL()) + " timed out!";
     }
     removeNext();
 }

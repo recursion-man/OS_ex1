@@ -9,7 +9,7 @@ using namespace std;
 void ctrlCHandler(int sig_num)
 {
   //  print massage
-  std::cout << "smash: got ctrl-C" << std::endl;
+  std::cout << "smash: got ctrl-C";
 
   //  get current command
   SmallShell &smash = SmallShell::getInstance();
@@ -39,8 +39,7 @@ void ctrlCHandler(int sig_num)
         //  update current command
         smash.setCurrentCommand(nullptr);
 
-        //  prints massage
-        std::cout << "smash: process " << pid << " was killed" << std::endl;
+        std::cout << "smash: process " << pid << " was killed";
       }
     }
   }
@@ -49,7 +48,7 @@ void ctrlCHandler(int sig_num)
 void ctrlZHandler(int sig_num)
 {
   //  print massage
-  std::cout << "smash: got ctrl-Z" << std::endl;
+  std::cout << "smash: got ctrl-Z";
 
   //  get current command
   SmallShell &smash = SmallShell::getInstance();
@@ -76,8 +75,7 @@ void ctrlZHandler(int sig_num)
         //  update current command
         smash.setCurrentCommand(nullptr);
 
-        //  prints massage
-        std::cout << "smash: process " << pid << " was stopped" << std::endl;
+        std::cout << "smash: process " << pid << " was stopped";
       }
     }
   }
