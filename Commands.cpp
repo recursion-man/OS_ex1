@@ -221,7 +221,6 @@ void RedirectionCommand::execute()
         // restores the correct stdout for smash
         cleanup();
     }
-
 }
 
 void RedirectionNormalCommand::prepare()
@@ -241,19 +240,17 @@ void RedirectionCommand::prepareGeneral(bool write_with_append)
     // permissions
     int new_fd;
     if (write_with_append)
-        new_fd = open(dest.c_str(), O_RDWR  | O_APPEND | O_CREAT, S_IRWXU);
+        new_fd = open(dest.c_str(), O_RDWR | O_APPEND | O_CREAT, S_IRWXU);
     else
-        new_fd = open(dest.c_str(), O_RDWR  | O_TRUNC | O_CREAT, S_IRWXU);
+        new_fd = open(dest.c_str(), O_RDWR | O_TRUNC | O_CREAT, S_IRWXU);
     if (new_fd < 0)
     {
         SystemCallFailed e("open");
         throw e;
     }
 
-
     // replacing stdout with dest
-    int res = dup2(new_fd,1);
-
+    int res = dup2(new_fd, 1);
 
     if (res < 0)
     {
@@ -357,7 +354,8 @@ void PipeCommand::execute(int pid_num)
             setpgrp();
             write_command->execute();
         }
-        else {
+        else
+        {
             // wait for the "write-son" to finish writing
             close(fd[0]);
             close(fd[1]);
@@ -367,7 +365,8 @@ void PipeCommand::execute(int pid_num)
     else
     {
         prepareWrite(pid_num);
-        try {
+        try
+        {
             write_command->execute();
         }
         catch (SystemCallFailed &e)
@@ -376,7 +375,7 @@ void PipeCommand::execute(int pid_num)
         }
         catch (std::exception &e)
         {
-            std::cerr << e.what()<<std::endl;
+            std::cerr << e.what() << std::endl;
         }
 
         // restoring the FDT for smash
@@ -385,7 +384,6 @@ void PipeCommand::execute(int pid_num)
 
     // wait for the "read-son" to finish reading
     waitpid(pid1, nullptr, 0);
-
 }
 
 void PipeCommand::cleanUp()
@@ -846,7 +844,8 @@ void bringCommandToForegound(int job_id, JobsList *jobs)
         waitpid(pid, nullptr, WUNTRACED);
 
         //  remove job from jobsList
-        smash.removeJob(job_to_cont->getJobId());
+        if (waitpid(pid, nullptr, WNOHANG) > 0)
+            smash.removeJob(job_to_cont->getJobId());
 
         //  delete current process from current command
         smash.setCurrentCommand(nullptr);
