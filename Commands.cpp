@@ -150,9 +150,8 @@ SmallShell::~SmallShell()
 
 // Command
 
-Command::Command(const char *cmd_line) : job_id(-1), process_id(getpid()), cmd_l(new char[sizeof(cmd_line) + 1]), external(false), args_vec()
+Command::Command(const char *cmd_line) : job_id(-1), process_id(getpid()), cmd_l(new char[sizeof(cmd_line)]), external(false), args_vec()
 {
-
     strcpy(cmd_l, cmd_line);
     args_vec = get_args_in_vec(cmd_l);
 };
@@ -168,7 +167,7 @@ RedirectionCommand::RedirectionCommand(const char *cmd_line, string sign) : Comm
     SmallShell &smash = SmallShell::getInstance();
 
     // finding the > / >> sign and validating arguments
-    string cmd_str = string(cmd_line);
+    string cmd_str = string(cmd_l);
     int sign_index = cmd_str.find(sign);
     if (sign_index == 0 || sign_index == int(cmd_str.size()) + 1)
     {
@@ -177,9 +176,10 @@ RedirectionCommand::RedirectionCommand(const char *cmd_line, string sign) : Comm
     }
 
     // calculating the base command to be redirected (e.g., ls, showPid, ...) and the destination input file
+    int sign_size = sign.size();
     string base_cmd = cmd_str.substr(0, sign_index);
-    dest = get_args_in_vec(cmd_str.substr(sign_index + 1, cmd_str.size() + 1).c_str())[0];
-    base_command = smash.CreateCommand(base_cmd.c_str()).get();
+    dest = get_args_in_vec(cmd_str.substr(sign_index + sign_size, cmd_str.size() + 1).c_str())[0];
+    base_command = smash.CreateCommand(base_cmd.c_str());
 
     // out_pd = the index of a new FD that points to the standard output
     out_pd = dup(1);
@@ -188,19 +188,18 @@ RedirectionCommand::RedirectionCommand(const char *cmd_line, string sign) : Comm
 void RedirectionCommand::execute()
 {
     // changing the standard output to dest for smash itself
-    prepare();
-
     // external cmd routine:
     if (base_command->isExternal())
     {
         int pid = fork();
-        // -------------child------------//
-        // notice we assume the cmd isn't running in the BackGround and won't get interrupted
         if (!pid)
         {
             int res = setpgrp();
             if (res < 0)
                 perror("smash error: setpgrp failed");
+
+            // prepare changes the stdout
+            prepare();
             base_command->execute();
         }
 
@@ -214,11 +213,15 @@ void RedirectionCommand::execute()
     // in case the cmd isn't external
     else
     {
+        // prepare changes the stdout
+        prepare();
+
         base_command->execute();
+
+        // restores the correct stdout for smash
+        cleanup();
     }
 
-    // restores the correct stdout for smash
-    cleanup();
 }
 
 void RedirectionNormalCommand::prepare()
@@ -235,24 +238,33 @@ void RedirectionAppendCommand::prepare()
 
 void RedirectionCommand::prepareGeneral(bool write_with_append)
 {
-    // replacing stdout with dest
-    int res_close = close(1);
-    if (res_close < 0)
-    {
-        SystemCallFailed e("close");
-        throw e;
-    }
-    int res_open;
-
     // permissions
+    int new_fd;
     if (write_with_append)
-        res_open = open(dest.c_str(), O_WRONLY | O_APPEND | O_CREAT, S_IRWXU);
+        new_fd = open(dest.c_str(), O_RDWR  | O_APPEND | O_CREAT, S_IRWXU);
     else
-        res_open = open(dest.c_str(), O_WRONLY | O_APPEND | O_CREAT, S_IRWXU);
-
-    if (res_open < 0)
+        new_fd = open(dest.c_str(), O_RDWR  | O_TRUNC | O_CREAT, S_IRWXU);
+    if (new_fd < 0)
     {
         SystemCallFailed e("open");
+        throw e;
+    }
+
+
+    // replacing stdout with dest
+    int res = dup2(new_fd,1);
+
+
+    if (res < 0)
+    {
+        SystemCallFailed e("dup2");
+        throw e;
+    }
+
+    res = close(new_fd);
+    if (res < 0)
+    {
+        SystemCallFailed e("close");
         throw e;
     }
 }
@@ -287,10 +299,11 @@ PipeCommand::PipeCommand(const char *cmd_line, string sign) : Command(cmd_line),
         throw e;
     }
     // calculating the commands for the pipe
+    int sign_size = sign.size();
     string first_cmd = cmd_str.substr(0, sign_index);
-    string second_cmd = cmd_str.substr(sign_index + 1, cmd_str.size() - sign_index - 1);
-    write_command = smash.CreateCommand(first_cmd.c_str()).get();
-    read_command = smash.CreateCommand(second_cmd.c_str()).get();
+    string second_cmd = cmd_str.substr(sign_index + sign_size, cmd_str.size() - sign_index - 1);
+    write_command = smash.CreateCommand(first_cmd.c_str());
+    read_command = smash.CreateCommand(second_cmd.c_str());
     pipe(fd);
 
     // allocating new FD for the stdin(0) stdout(1)  and stderr(2)
@@ -334,30 +347,45 @@ void PipeCommand::execute(int pid_num)
         read_command->execute();
     }
 
-    prepareWrite(pid_num);
-
     // write end of the pipe
     if (write_command->isExternal())
     {
         int pid2 = fork();
         if (!pid2)
         {
+            prepareWrite(pid_num);
             setpgrp();
             write_command->execute();
         }
-        // wait for the "write-son" to finish writing
-        waitpid(pid2, nullptr, WUNTRACED);
+        else {
+            // wait for the "write-son" to finish writing
+            close(fd[0]);
+            close(fd[1]);
+            waitpid(pid2, nullptr, 0);
+        }
     }
     else
     {
-        write_command->execute();
+        prepareWrite(pid_num);
+        try {
+            write_command->execute();
+        }
+        catch (SystemCallFailed &e)
+        {
+            perror(e.what());
+        }
+        catch (std::exception &e)
+        {
+            std::cerr << e.what()<<std::endl;
+        }
+
+        // restoring the FDT for smash
+        cleanUp();
     }
 
     // wait for the "read-son" to finish reading
-    waitpid(pid1, nullptr, WUNTRACED);
+    waitpid(pid1, nullptr, 0);
 
-    // restoring the FDT for smash
-    cleanUp();
 }
 
 void PipeCommand::cleanUp()
@@ -583,9 +611,15 @@ void ChangeDirCommand::execute()
     std::string new_dir;
 
     //  Check amount of arguments
-    if (int(args_vec.size()) != 2)
+    if (int(args_vec.size()) > 2)
     {
         TooManyArguments e("cd");
+        throw e;
+    }
+
+    if (int(args_vec.size()) == 1)
+    {
+        UnspecifiedError e((string(cmd_l)));
         throw e;
     }
 
@@ -1396,7 +1430,7 @@ shared_ptr<Command> SmallShell::CreateCommand(const char *cmd_line)
     {
         return shared_ptr<Command>(new PipeSterrCommand(cmd_line));
     }
-    if (isRedirect(string(cmd_line)))
+    else if (isRedirect(string(cmd_line)))
     {
         return shared_ptr<Command>(new RedirectionNormalCommand(cmd_line));
     }
