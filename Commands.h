@@ -7,7 +7,6 @@
 #include <list>
 #include <memory>
 #include <fcntl.h>
-#include <iostream>
 
 #define COMMAND_ARGS_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
@@ -65,8 +64,8 @@ class PipeCommand : public Command
 {
   // echo aaa | grep a > stdout
 protected:
-  std::shared_ptr<Command> write_command;
-  std::shared_ptr<Command> read_command;
+  Command *write_command;
+  Command *read_command;
   int standard_in_pd;
   int standard_out_pd;
   int standard_error_pd;
@@ -79,7 +78,7 @@ public:
   void execute(int);
   void prepareWrite(int);
   void prepareRead();
-  void cleanUp();
+  virtual void cleanUp();
 };
 
 class PipeNormalCommand : public PipeCommand
@@ -93,6 +92,8 @@ class PipeSterrCommand : public PipeCommand
 {
 public:
   PipeSterrCommand(const char *cmd_line) : PipeCommand(cmd_line, "|&") {}
+  //    void prepareWrite() override;
+  //    void prepareRead() override;
   void execute() override;
 };
 
@@ -100,7 +101,7 @@ class RedirectionCommand : public Command
 {
 protected:
   // command to be redirect
-  std::shared_ptr<Command> base_command;
+  Command *base_command;
 
   // the destination file
   std::string dest;
@@ -377,19 +378,6 @@ bool isPipe(std::string cmd_str);
 
 ///------------------------------------------exceptions-----------------------------
 
-class UnspecifiedError : public std::exception
-{
-private:
-    std::string error_str;
-
-public:
-    UnspecifiedError(std::string error_line) : error_str("smash error:> "  + error_line) {}
-    const char *what() const noexcept
-    {
-        return error_str.c_str();
-    }
-};
-
 class InvaildArgument : public std::exception
 {
 private:
@@ -414,7 +402,6 @@ public:
     return error_str.c_str();
   }
 };
-
 
 struct SystemCallFailed : public std::exception
 {
