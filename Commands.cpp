@@ -139,7 +139,7 @@ bool isStringNumber(std::string str)
 //<---------------------------C'tors and D'tors--------------------------->
 
 // Small Shell
-SmallShell::SmallShell() : prompt("smash> "), last_wd(""), current_command(nullptr), jobs_list(new JobsList())
+SmallShell::SmallShell() : prompt("smash> "), last_wd(""), current_command(nullptr), jobs_list(new JobsList()), timeOutList(new TimeOutList())
 {
 }
 
@@ -150,7 +150,8 @@ SmallShell::~SmallShell()
 
 // Command
 
-Command::Command(const char *cmd_line) : job_id(-1), process_id(getpid()), cmd_l(new char[strlen(cmd_line) + 1]), external(false), args_vec()
+Command::Command(const char *cmd_line) : job_id(-1), process_id(getpid()), cmd_l(new char[strlen(cmd_line) + 1]),
+                                          external(false),time_out(false), args_vec()
 {
 
     strcpy(cmd_l, cmd_line);
@@ -482,18 +483,16 @@ void SmallShell::executeCommand(const char *cmd_line)
 
     shared_ptr<Command> cmd = CreateCommand(cmd_line);
 
-    if (!cmd->isExternal())
+    if (!cmd->isExternal()&& !cmd->isTimeout())
     {
         cmd->execute();
     }
-    ///--------------------------Bonus start----------------------------------------
-    /// -----------------------------else if (cmd == TimeOut)----------------
-    ///             {
-    ///                this->addTimeOutCommand(cmd);
-    ///                cmd->execute();
-    ///                this->addJob(cmd, false);
-    ///            }
-    ///---------------------------Bonus end-------------------------------------------
+
+    else if (cmd->isTimeout()){
+        this->addTimeOutCommand(dynamic_pointer_cast<TimeoutCommand>(cmd));
+        this->addJob(cmd);
+        cmd->execute();
+    }
 
     else
     {
@@ -1338,6 +1337,15 @@ void JobsList::removeFinishedJobs()
     for (int i = 0; i < int(jobs.size()); i++)
     {
         //  check if a process is finished
+
+        if (jobs[i]->getCommand()->isTimeout())
+        {
+            shared_ptr<TimeoutCommand> cmd = dynamic_pointer_cast<TimeoutCommand>(jobs[i]->getCommand());
+            if (cmd->getTime()<= time(nullptr))
+                jobs_to_delete.push_back(jobs[i]->getJobId());
+            continue;
+        }
+
         int pid = jobs[i]->getCommand()->getProcessId();
         int res = waitpid(pid, nullptr, WNOHANG);
         if (res > 0)
@@ -1454,6 +1462,10 @@ shared_ptr<Command> SmallShell::CreateCommand(const char *cmd_line)
     {
         return shared_ptr<Command>(new ChmodCommand(cmd_line));
     }
+    else if (firstWord.compare("timeout") == 0)
+    {
+        return shared_ptr<Command>(new TimeoutCommand(cmd_line));
+    }
     else
     {
         return shared_ptr<Command>(new ExternalCommand(cmd_line));
@@ -1489,6 +1501,7 @@ void SmallShell::removeJob(int job_id)
 //<--------------------------- Aux functions--------------------------->
 
 //  Note : is irrelevent?
+//
 bool isBuildInCommand(string firstWord)
 {
     if (firstWord.compare("pwd") == 0 ||
@@ -1520,20 +1533,25 @@ void SmallShell::handleAlarm()
 
 TimeoutCommand::TimeoutCommand(const char *cmd_line) : BuiltInCommand(cmd_line)
 {
-    SmallShell &smash = SmallShell::getInstance();
-    string target_cmd_str = "";
-    for (int i = 2; i < int(args_vec.size()); i++)
-        target_cmd_str += args_vec[i];
 
-    target_cmd = smash.CreateCommand(target_cmd_str.c_str());
     if (!isStringNumber(args_vec[1]))
     {
         InvaildArgument e("timeout");
         throw e;
     }
+
+    SmallShell &smash = SmallShell::getInstance();
+
+    string target_cmd_str = "";
+    for (int i = 2; i < int(args_vec.size()); i++)
+        target_cmd_str += args_vec[i] += " ";
+
+    target_cmd = smash.CreateCommand(target_cmd_str.c_str());
+
     int time_to_alarm = stoi(args_vec[1]);
     dest_time = time(nullptr) + time_to_alarm;
-    m_pid = -1;
+    m_pid = getProcessId();
+    time_out =true;
 };
 
 void TimeoutCommand::execute()
@@ -1543,6 +1561,7 @@ void TimeoutCommand::execute()
     // we assume all the commands are External, because a built-in command will end very quick...
     if (!target_cmd->isExternal())
         throw std::runtime_error("got Built-in Command in Timeout!!");
+
 
     int pid = fork();
 
@@ -1556,8 +1575,7 @@ void TimeoutCommand::execute()
     else
     {
         // store the pid of the child in the list
-        setProcessId(pid);
-
+        m_pid=pid;
         if (!(_isBackgroundCommand(target_cmd->getCmdL())))
         {
             smash.setCurrentCommand(target_cmd);
@@ -1572,42 +1590,63 @@ void TimeOutList::removeNext()
     time_out_list.pop_front();
     if (time_out_list.empty())
         return;
-    next_cmd = time_out_list.front().get();
+    next_cmd = time_out_list.front();
     makeAlarm();
 }
 
+
+
+void TimeOutList::removedFinished()
+{
+    auto it = time_out_list.begin();
+    while ( it != time_out_list.end())
+    {
+        //  check if a process is finished
+        int pid = (*it)->getTimeoutTargetPid();
+        int res = waitpid(pid, nullptr, WNOHANG);
+        if (res > 0) {
+            it = time_out_list.erase(it);
+        }
+        else
+            it++;
+    }
+}
 void TimeOutList::makeAlarm()
 {
     int cmd_time = next_cmd->getTime();
     time_to_next = cmd_time - time(nullptr);
     alarm(time_to_next);
 }
+
+int TimeoutCommand::getTimeoutTargetPid(){
+    return m_pid;
+}
 void TimeOutList::handleSignal()
 {
-    int target_pid = next_cmd->getProcessId();
+    int target_pid = next_cmd->getTimeoutTargetPid();
+    cout<<"smash: got an alarm"<<endl;
+    // check if the command already stopped before killing it
+    int is_terminated = waitpid(target_pid, nullptr, WNOHANG);
 
-    //    // check if the command already stopped before killing it
-    //    int res = waitpid(target_pid, nullptr, WNOHANG);
-
-    if (target_pid != getpid())
+    if (!is_terminated && target_pid != getpid())
     {
-        //
         if (kill(target_pid, SIGKILL) == -1)
         {
             SystemCallFailed e("kill");
             throw e;
         }
-
         std::cout << "smash: " + string(next_cmd->getCmdL()) + " timed out!" << std::endl;
     }
     removeNext();
 }
+
 void TimeOutList::addToList(std::shared_ptr<TimeoutCommand> new_cmd)
 {
+    removedFinished();
     int new_cmd_time = new_cmd->getTime();
-    if (new_cmd_time < time_to_next + time(nullptr))
+    if (new_cmd_time < time_to_next + time(nullptr) || time_out_list.empty())
     {
-        next_cmd = new_cmd.get();
+        next_cmd = new_cmd;
         makeAlarm();
     }
     for (auto it = time_out_list.begin(); it != time_out_list.end(); it++)

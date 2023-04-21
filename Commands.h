@@ -19,6 +19,7 @@ protected:
   int process_id;
   char *cmd_l;
   bool external;
+  bool time_out;
   std::vector<std::string> args_vec;
   // std::shared_ptr<Command> shared_instance;
 
@@ -29,6 +30,7 @@ public:
   //  virtual void preparePd(Command*,bool);
   // virtual void cleanup();
   bool isExternal() { return external; }
+    bool isTimeout() {return time_out;}
   void setShared(std::shared_ptr<Command>);
   std::shared_ptr<Command> getShared();
 
@@ -309,13 +311,14 @@ public:
   virtual ~TimeoutCommand() = default;
   void execute() override;
   int getTime() const;
+  int getTimeoutTargetPid();
 };
 
 class TimeOutList
 {
 private:
   int time_to_next;
-  TimeoutCommand *next_cmd;
+  std::shared_ptr<TimeoutCommand> next_cmd;
   std::list<std::shared_ptr<TimeoutCommand>> time_out_list;
 
 public:
@@ -323,6 +326,7 @@ public:
   void removeNext();
   void makeAlarm();
   void handleSignal();
+  void removedFinished();
 };
 
 /// ---------------------------------------Bonus end-----------------------------------------
