@@ -66,8 +66,8 @@ class PipeCommand : public Command
 {
   // echo aaa | grep a > stdout
 protected:
-  Command *write_command;
-  Command *read_command;
+  std::shared_ptr<Command> write_command;
+  std::shared_ptr<Command> read_command;
   int standard_in_pd;
   int standard_out_pd;
   int standard_error_pd;
@@ -80,7 +80,7 @@ public:
   void execute(int);
   void prepareWrite(int);
   void prepareRead();
-  virtual void cleanUp();
+  void cleanUp();
 };
 
 class PipeNormalCommand : public PipeCommand
@@ -94,8 +94,6 @@ class PipeSterrCommand : public PipeCommand
 {
 public:
   PipeSterrCommand(const char *cmd_line) : PipeCommand(cmd_line, "|&") {}
-  //    void prepareWrite() override;
-  //    void prepareRead() override;
   void execute() override;
 };
 
@@ -103,7 +101,7 @@ class RedirectionCommand : public Command
 {
 protected:
   // command to be redirect
-  Command *base_command;
+  std::shared_ptr<Command> base_command;
 
   // the destination file
   std::string dest;
@@ -381,6 +379,19 @@ bool isRedirect(std::string cmd_str);
 bool isPipe(std::string cmd_str);
 
 ///------------------------------------------exceptions-----------------------------
+
+class UnspecifiedError : public std::exception
+{
+private:
+    std::string error_str;
+
+public:
+    UnspecifiedError(std::string error_line) : error_str(error_line) {}
+    const char *what() const noexcept
+    {
+        return error_str.c_str();
+    }
+};
 
 class InvaildArgument : public std::exception
 {
