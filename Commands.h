@@ -386,7 +386,7 @@ private:
     std::string error_str;
 
 public:
-    UnspecifiedError(std::string error_line) : error_str(error_line) {}
+    UnspecifiedError(std::string error_line) : error_str("smash error:> \"" + error_line + "\"" ) {}
     const char *what() const noexcept
     {
         return error_str.c_str();
