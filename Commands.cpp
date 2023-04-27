@@ -151,7 +151,7 @@ SmallShell::~SmallShell()
 // Command
 
 Command::Command(const char *cmd_line) : job_id(-1), process_id(getpid()), cmd_l(new char[strlen(cmd_line) + 1]),
-                                          external(false),time_out(false), args_vec()
+                                         external(false), time_out(false), args_vec()
 {
 
     strcpy(cmd_l, cmd_line);
@@ -223,7 +223,6 @@ void RedirectionCommand::execute()
         // restores the correct stdout for smash
         cleanup();
     }
-
 }
 
 void RedirectionNormalCommand::prepare()
@@ -243,19 +242,17 @@ void RedirectionCommand::prepareGeneral(bool write_with_append)
     // permissions
     int new_fd;
     if (write_with_append)
-        new_fd = open(dest.c_str(), O_RDWR  | O_APPEND | O_CREAT, S_IRWXU);
+        new_fd = open(dest.c_str(), O_RDWR | O_APPEND | O_CREAT, S_IRWXU);
     else
-        new_fd = open(dest.c_str(), O_RDWR  | O_TRUNC | O_CREAT, S_IRWXU);
+        new_fd = open(dest.c_str(), O_RDWR | O_TRUNC | O_CREAT, S_IRWXU);
     if (new_fd < 0)
     {
         SystemCallFailed e("open");
         throw e;
     }
 
-
     // replacing stdout with dest
-    int res = dup2(new_fd,1);
-
+    int res = dup2(new_fd, 1);
 
     if (res < 0)
     {
@@ -359,7 +356,8 @@ void PipeCommand::execute(int pid_num)
             setpgrp();
             write_command->execute();
         }
-        else {
+        else
+        {
             // wait for the "write-son" to finish writing
             close(fd[0]);
             close(fd[1]);
@@ -369,7 +367,8 @@ void PipeCommand::execute(int pid_num)
     else
     {
         prepareWrite(pid_num);
-        try {
+        try
+        {
             write_command->execute();
         }
         catch (SystemCallFailed &e)
@@ -378,7 +377,7 @@ void PipeCommand::execute(int pid_num)
         }
         catch (std::exception &e)
         {
-            std::cerr << e.what()<<std::endl;
+            std::cerr << e.what() << std::endl;
         }
 
         // restoring the FDT for smash
@@ -387,7 +386,6 @@ void PipeCommand::execute(int pid_num)
 
     // wait for the "read-son" to finish reading
     waitpid(pid1, nullptr, 0);
-
 }
 
 void PipeCommand::cleanUp()
@@ -500,10 +498,9 @@ void SmallShell::setCurrentCommand(shared_ptr<Command> command)
 void SmallShell::executeCommand(const char *cmd_line)
 {
 
-
     string cmd_s = _trim(string(cmd_line));
     string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
-    
+
     if (firstWord.compare("chprompt") == 0)
     {
         changeChprompt(cmd_line);
@@ -512,12 +509,13 @@ void SmallShell::executeCommand(const char *cmd_line)
 
     shared_ptr<Command> cmd = CreateCommand(cmd_line);
 
-    if (!cmd->isExternal()&& !cmd->isTimeout())
+    if (!cmd->isExternal() && !cmd->isTimeout())
     {
         cmd->execute();
     }
 
-    else if (cmd->isTimeout()){
+    else if (cmd->isTimeout())
+    {
         this->addTimeOutCommand(dynamic_pointer_cast<TimeoutCommand>(cmd));
         this->addJob(cmd);
         cmd->execute();
@@ -595,6 +593,7 @@ void ShowPidCommand::execute()
 
 void GetCurrDirCommand::execute()
 {
+    // Note: to check max path length
     char cwd[256];
 
     // get the current working directory
@@ -671,12 +670,18 @@ void ExternalCommand::execute()
     }
     // parse path depending on Command type (Simple or Complex)
     // inserting "-c" for Complex Command
+    bool simple_plag = false;
     if (_isSimpleExternal(cmd_l))
     {
-        args_vec[0] = "/bin/" + args_vec[0];
+        // args_vec[0] = "/bin/" + args_vec[0];
+        simple_plag = true;
     }
     else
     {
+        for (int i = 1; i < int(args_vec.size()); i++)
+            args_vec[0] += " " + args_vec[i];
+        for (int i = 1; i < int(args_vec.size()); i++)
+            args_vec.pop_back();
         args_vec.insert(args_vec.begin(), "/bin/bash");
         args_vec.insert(args_vec.begin() + 1, "-c");
     }
@@ -688,6 +693,12 @@ void ExternalCommand::execute()
     // executing Command
     if (execv(args[0], args) == -1)
     {
+        if (simple_plag == true)
+        {
+            args_vec[0] = "/bin/" + args_vec[0];
+            _reformatArgsVec(args, args_vec);
+            execv(args[0], args);
+        }
         perror("smash error: execv failed");
         // delete[] args; לשחרר זיכרון לפני שיוצאים?
         exit(1);
@@ -844,7 +855,7 @@ void bringCommandToForegound(int job_id, JobsList *jobs)
         waitpid(pid, nullptr, WUNTRACED);
 
         //  remove job from jobsList if finished properly
-        if (waitpid(pid, nullptr, WNOHANG) > 0)
+        if (smash.getCurrentCommand() != nullptr)
             smash.removeJob(job_to_cont->getJobId());
 
         //  delete current process from current command
@@ -1121,7 +1132,7 @@ void GetFileTypeCommand::execute()
         throw e;
     }
     //  get info on path
-    
+
     std::string path = args_vec[1];
     struct stat stats;
 
@@ -1370,7 +1381,7 @@ void JobsList::removeFinishedJobs()
         if (jobs[i]->getCommand()->isTimeout())
         {
             shared_ptr<TimeoutCommand> cmd = dynamic_pointer_cast<TimeoutCommand>(jobs[i]->getCommand());
-            if (cmd->getTime()<= time(nullptr))
+            if (cmd->getTime() <= time(nullptr))
                 jobs_to_delete.push_back(jobs[i]->getJobId());
             continue;
         }
@@ -1483,7 +1494,7 @@ shared_ptr<Command> SmallShell::CreateCommand(const char *cmd_line)
     {
         return shared_ptr<Command>(new SetcoreCommand(cmd_line, this->jobs_list));
     }
-    else if (firstWord.compare("getfileinfo") == 0)
+    else if (firstWord.compare("getfiletype") == 0)
     {
         return shared_ptr<Command>(new GetFileTypeCommand(cmd_line));
     }
@@ -1580,7 +1591,7 @@ TimeoutCommand::TimeoutCommand(const char *cmd_line) : BuiltInCommand(cmd_line)
     int time_to_alarm = stoi(args_vec[1]);
     dest_time = time(nullptr) + time_to_alarm;
     m_pid = getProcessId();
-    time_out =true;
+    time_out = true;
 };
 
 void TimeoutCommand::execute()
@@ -1590,7 +1601,6 @@ void TimeoutCommand::execute()
     // we assume all the commands are External, because a built-in command will end very quick...
     if (!target_cmd->isExternal())
         throw std::runtime_error("got Built-in Command in Timeout!!");
-
 
     int pid = fork();
 
@@ -1604,7 +1614,7 @@ void TimeoutCommand::execute()
     else
     {
         // store the pid of the child in the list
-        m_pid=pid;
+        m_pid = pid;
         if (!(_isBackgroundCommand(target_cmd->getCmdL())))
         {
             smash.setCurrentCommand(target_cmd);
@@ -1623,17 +1633,16 @@ void TimeOutList::removeNext()
     makeAlarm();
 }
 
-
-
 void TimeOutList::removedFinished()
 {
     auto it = time_out_list.begin();
-    while ( it != time_out_list.end())
+    while (it != time_out_list.end())
     {
         //  check if a process is finished
         int pid = (*it)->getTimeoutTargetPid();
         int res = waitpid(pid, nullptr, WNOHANG);
-        if (res > 0) {
+        if (res > 0)
+        {
             it = time_out_list.erase(it);
         }
         else
@@ -1647,13 +1656,14 @@ void TimeOutList::makeAlarm()
     alarm(time_to_next);
 }
 
-int TimeoutCommand::getTimeoutTargetPid(){
+int TimeoutCommand::getTimeoutTargetPid()
+{
     return m_pid;
 }
 void TimeOutList::handleSignal()
 {
     int target_pid = next_cmd->getTimeoutTargetPid();
-    cout<<"smash: got an alarm"<<endl;
+    cout << "smash: got an alarm" << endl;
     // check if the command already stopped before killing it
     int is_terminated = waitpid(target_pid, nullptr, WNOHANG);
 
@@ -1671,7 +1681,7 @@ void TimeOutList::handleSignal()
 
 void TimeOutList::addToList(std::shared_ptr<TimeoutCommand> new_cmd)
 {
-    //removedFinished();
+    // removedFinished();
     int new_cmd_time = new_cmd->getTime();
     if (new_cmd_time < time_to_next + time(nullptr) || time_out_list.empty())
     {
