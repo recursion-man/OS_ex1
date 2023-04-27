@@ -616,7 +616,7 @@ void ChangeDirCommand::execute()
     //  Check amount of arguments
     if (int(args_vec.size()) != 2)
     {
-        TooManyArguments e("cd");
+        DefaultError e(cmd_l);
         throw e;
     }
 
@@ -1096,17 +1096,16 @@ void SetcoreCommand::execute()
 
             //  get amount of cores in the cpu
             int cores_in_cpu = std::thread::hardware_concurrency();
-
             //  check if the core that was given is in range
-            if (cores_in_cpu < core_number || core_number < 0)
+            if (cores_in_cpu <= core_number || core_number < 0)
             {
                 InvaildCoreNumber e;
                 throw e;
             }
 
             //  set the job's core
-            //  Note : might be a problem with the bits?
             cpu_set_t set;
+            CPU_ZERO(&set);
             CPU_SET(core_number, &set);
             if (sched_setaffinity(pid, sizeof(cpu_set_t), &set) == -1)
             {

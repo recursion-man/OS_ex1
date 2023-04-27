@@ -30,7 +30,7 @@ public:
   //  virtual void preparePd(Command*,bool);
   // virtual void cleanup();
   bool isExternal() { return external; }
-    bool isTimeout() {return time_out;}
+  bool isTimeout() { return time_out; }
   void setShared(std::shared_ptr<Command>);
   std::shared_ptr<Command> getShared();
 
@@ -216,7 +216,6 @@ public:
   int getMaxId() const;
   bool isEmpty() const;
 
-
   //  aux
   void addJob(std::shared_ptr<Command> cmd, bool isStopped = false);
   void removeJobById(int jobId);
@@ -383,14 +382,14 @@ bool isPipe(std::string cmd_str);
 class UnspecifiedError : public std::exception
 {
 private:
-    std::string error_str;
+  std::string error_str;
 
 public:
-    UnspecifiedError(std::string error_line) : error_str("smash error:> \"" + error_line + "\"" ) {}
-    const char *what() const noexcept
-    {
-        return error_str.c_str();
-    }
+  UnspecifiedError(std::string error_line) : error_str("smash error:> \"" + error_line + "\"") {}
+  const char *what() const noexcept
+  {
+    return error_str.c_str();
+  }
 };
 
 class InvaildArgument : public std::exception
@@ -468,14 +467,14 @@ public:
 
 struct JobAlreadyRunning : public std::exception
 {
-    std::string error_str;
+  std::string error_str;
 
 public:
-    JobAlreadyRunning(int job_id) : error_str("smash error: bg: job-id " + std::to_string(job_id) + " is already running in the background") {}
-    const char* what() const noexcept
-    {
-        return error_str.c_str();
-    }
+  JobAlreadyRunning(int job_id) : error_str("smash error: bg: job-id " + std::to_string(job_id) + " is already running in the background") {}
+  const char *what() const noexcept
+  {
+    return error_str.c_str();
+  }
 };
 
 struct NoStoppedJobs : public std::exception
@@ -496,6 +495,18 @@ struct InvaildCoreNumber : public std::exception
 
 public:
   InvaildCoreNumber() : error_str("smash error: setcore: invalid core number") {}
+  const char *what() const noexcept
+  {
+    return error_str.c_str();
+  }
+};
+
+struct DefaultError : public std::exception
+{
+  std::string error_str;
+
+public:
+  DefaultError(const char *cmd_l) : error_str("smash error: " + std::string(cmd_l)) {}
   const char *what() const noexcept
   {
     return error_str.c_str();

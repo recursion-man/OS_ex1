@@ -2,14 +2,13 @@
 #include <signal.h>
 #include "signals.h"
 #include "Commands.h"
-// #include "Exeptions.h"
 
 using namespace std;
 
 void ctrlCHandler(int sig_num)
 {
   //  print massage
-  std::cout << "smash: got ctrl-C";
+  std::cout << "smash: got ctrl-C" << std::endl;
 
   //  get current command
   SmallShell &smash = SmallShell::getInstance();
@@ -50,7 +49,7 @@ void ctrlCHandler(int sig_num)
 void ctrlZHandler(int sig_num)
 {
   //  print massage
-  std::cout << "smash: got ctrl-Z";
+  std::cout << "smash: got ctrl-Z" << std::endl;
 
   //  get current command
   SmallShell &smash = SmallShell::getInstance();
