@@ -1002,7 +1002,8 @@ void KillCommand::execute()
         else
         {
             int pid = job->getCommand()->getProcessId();
-
+            string cmd_s = _trim(string(job->getCommand()->getCmdL()));
+            string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
             //  Note : to check if there are more signal numbers that fit
             //  kill signals
             if (signal_num == 9 || signal_num == 15 || signal_num == 6 || signal_num == 2)
@@ -1014,6 +1015,11 @@ void KillCommand::execute()
                 }
                 else
                 {
+                    if (firstWord == "timeout")
+                    {
+                        // kill singal to timeout
+                        //  Tomer do your shit here
+                    }
                     //  remove the job from the jobs list for good
                     jobs->removeJobById(job->getJobId());
                 }
@@ -1029,6 +1035,11 @@ void KillCommand::execute()
                 }
                 else
                 {
+                    if (firstWord == "timeout")
+                    {
+                        // stop singal to timeout
+                        //  Tomer do your shit here
+                    }
                     //  update the jobs status
                     job->setStopped(true);
                 }
@@ -1044,6 +1055,11 @@ void KillCommand::execute()
                 }
                 else
                 {
+                    if (firstWord == "timeout")
+                    {
+                        // continute singal to timeout
+                        //  Tomer do your shit here
+                    }
                     //  update the jobs status
                     job->setStopped(false);
                 }
