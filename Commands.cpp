@@ -194,7 +194,13 @@ void RedirectionCommand::execute()
     if (base_command->isExternal())
     {
         int pid = fork();
-        if (!pid)
+        if (pid == -1)
+        {
+            SystemCallFailed e("fork");
+            throw e;
+        }
+        // ------------------------------child-------------------------//
+        else if (pid == 0)
         {
             int res = setpgrp();
             if (res < 0)
@@ -341,7 +347,9 @@ void PipeCommand::execute(int pid_num)
     int pid1 = fork();
     if (!pid1)
     {
-        setpgrp();
+        int res = setpgrp();
+        if (res < 0)
+            perror("smash error: setpgrp failed");
         prepareRead();
         read_command->execute();
     }
@@ -353,7 +361,9 @@ void PipeCommand::execute(int pid_num)
         if (!pid2)
         {
             prepareWrite(pid_num);
-            setpgrp();
+            int res = setpgrp();
+            if (res < 0)
+                perror("smash error: setpgrp failed");
             write_command->execute();
         }
         else
@@ -524,9 +534,13 @@ void SmallShell::executeCommand(const char *cmd_line)
     else
     {
         int pid = fork();
-
-        //--------------------- child -----------------------------//
-        if (pid == 0)
+        if (pid == -1)
+        {
+            SystemCallFailed e("fork");
+            throw e;
+        }
+        // ------------------------------child-------------------------//
+        else if (pid == 0)
         {
             if (setpgrp() == -1)
             {
@@ -974,6 +988,7 @@ void KillCommand::execute()
         job_id = stoi(args_vec[2]);
     }
     //  check if number is in range
+    // Note: We take the assumption that there are 0-31 signals only
     if (signal_num > 0 && signal_num < 32 && job_id != -1)
     {
 
@@ -1603,9 +1618,17 @@ void TimeoutCommand::execute()
 
     int pid = fork();
 
-    // ------------------------------child-------------------------//
-    if (!pid)
+    if (pid == -1)
     {
+        SystemCallFailed e("fork");
+        throw e;
+    }
+    // ------------------------------child-------------------------//
+    else if (pid == 0)
+    {
+        int res = setpgrp();
+        if (res < 0)
+            perror("smash error: setpgrp failed");
         target_cmd->execute();
     }
 
