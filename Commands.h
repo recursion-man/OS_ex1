@@ -324,6 +324,7 @@ public:
   void makeAlarm();
   void handleSignal();
   void removedFinished();
+  void removeCommand(std::shared_ptr<TimeoutCommand>);
 };
 
 /// ---------------------------------------Bonus end-----------------------------------------
@@ -365,8 +366,10 @@ public:
 
   void addJob(std::shared_ptr<Command> cmd, bool is_stopped = false);
   void addTimeOutCommand(std::shared_ptr<TimeoutCommand>);
+  void removeTimeOutCommand(std::shared_ptr<TimeoutCommand>);
 
-  void handleAlarm();
+
+    void handleAlarm();
 
   void removeJob(int job_id);
 };

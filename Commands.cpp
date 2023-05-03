@@ -151,7 +151,7 @@ SmallShell::~SmallShell()
 // Command
 
 Command::Command(const char *cmd_line) : job_id(-1), process_id(getpid()), cmd_l(new char[strlen(cmd_line) + 1]),
-                                         external(false), time_out(false), args_vec()
+                                          external(false),time_out(false), args_vec()
 {
 
     strcpy(cmd_l, cmd_line);
@@ -229,6 +229,7 @@ void RedirectionCommand::execute()
         // restores the correct stdout for smash
         cleanup();
     }
+
 }
 
 void RedirectionNormalCommand::prepare()
@@ -248,17 +249,19 @@ void RedirectionCommand::prepareGeneral(bool write_with_append)
     // permissions
     int new_fd;
     if (write_with_append)
-        new_fd = open(dest.c_str(), O_RDWR | O_APPEND | O_CREAT, S_IRWXU);
+        new_fd = open(dest.c_str(), O_RDWR  | O_APPEND | O_CREAT, S_IRWXU);
     else
-        new_fd = open(dest.c_str(), O_RDWR | O_TRUNC | O_CREAT, S_IRWXU);
+        new_fd = open(dest.c_str(), O_RDWR  | O_TRUNC | O_CREAT, S_IRWXU);
     if (new_fd < 0)
     {
         SystemCallFailed e("open");
         throw e;
     }
 
+
     // replacing stdout with dest
-    int res = dup2(new_fd, 1);
+    int res = dup2(new_fd,1);
+
 
     if (res < 0)
     {
@@ -366,8 +369,7 @@ void PipeCommand::execute(int pid_num)
                 perror("smash error: setpgrp failed");
             write_command->execute();
         }
-        else
-        {
+        else {
             // wait for the "write-son" to finish writing
             close(fd[0]);
             close(fd[1]);
@@ -377,8 +379,7 @@ void PipeCommand::execute(int pid_num)
     else
     {
         prepareWrite(pid_num);
-        try
-        {
+        try {
             write_command->execute();
         }
         catch (SystemCallFailed &e)
@@ -387,7 +388,7 @@ void PipeCommand::execute(int pid_num)
         }
         catch (std::exception &e)
         {
-            std::cerr << e.what() << std::endl;
+            std::cerr << e.what()<<std::endl;
         }
 
         // restoring the FDT for smash
@@ -396,6 +397,7 @@ void PipeCommand::execute(int pid_num)
 
     // wait for the "read-son" to finish reading
     waitpid(pid1, nullptr, 0);
+
 }
 
 void PipeCommand::cleanUp()
@@ -528,6 +530,10 @@ void SmallShell::executeCommand(const char *cmd_line)
     {
         this->addTimeOutCommand(dynamic_pointer_cast<TimeoutCommand>(cmd));
         this->addJob(cmd);
+        if (!(_isBackgroundCommand(cmd_line)))
+        {
+            current_command = cmd;
+        }
         cmd->execute();
     }
 
@@ -628,9 +634,14 @@ void ChangeDirCommand::execute()
     std::string new_dir;
 
     //  Check amount of arguments
-    if (int(args_vec.size()) != 2)
+    if (int(args_vec.size()) > 2)
     {
         DefaultError e(cmd_l);
+        throw e;
+    }
+    if (int(args_vec.size()) == 1)
+    {
+        UnspecifiedError e(cmd_l);
         throw e;
     }
 
@@ -692,10 +703,12 @@ void ExternalCommand::execute()
     }
     else
     {
-        for (int i = 1; i < int(args_vec.size()); i++)
+        for (int i=1; i< int(args_vec.size()); i++)
             args_vec[0] += " " + args_vec[i];
-        for (int i = 1; i < int(args_vec.size()); i++)
+
+        for (int i=1; i< int(args_vec.size()); i++)
             args_vec.pop_back();
+
         args_vec.insert(args_vec.begin(), "/bin/bash");
         args_vec.insert(args_vec.begin() + 1, "-c");
     }
@@ -1002,8 +1015,11 @@ void KillCommand::execute()
         else
         {
             int pid = job->getCommand()->getProcessId();
+
             string cmd_s = _trim(string(job->getCommand()->getCmdL()));
             string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
+
+
             //  Note : to check if there are more signal numbers that fit
             //  kill signals
             if (signal_num == 9 || signal_num == 15 || signal_num == 6 || signal_num == 2)
@@ -1015,11 +1031,6 @@ void KillCommand::execute()
                 }
                 else
                 {
-                    if (firstWord == "timeout")
-                    {
-                        // kill singal to timeout
-                        //  Tomer do your shit here
-                    }
                     //  remove the job from the jobs list for good
                     jobs->removeJobById(job->getJobId());
                 }
@@ -1035,11 +1046,6 @@ void KillCommand::execute()
                 }
                 else
                 {
-                    if (firstWord == "timeout")
-                    {
-                        // stop singal to timeout
-                        //  Tomer do your shit here
-                    }
                     //  update the jobs status
                     job->setStopped(true);
                 }
@@ -1055,11 +1061,6 @@ void KillCommand::execute()
                 }
                 else
                 {
-                    if (firstWord == "timeout")
-                    {
-                        // continute singal to timeout
-                        //  Tomer do your shit here
-                    }
                     //  update the jobs status
                     job->setStopped(false);
                 }
@@ -1259,8 +1260,15 @@ void JobsList::JobEntry::printInfo() const
     string stopped_str = is_stopped ? "(stopped)" : "";
     string cmd_l(command->getCmdL());
 
+    // get pid
+    int pid = command->getProcessId();
+    if (command->isTimeout())
+    {
+        pid = getpid();
+    }
+
     //  print info
-    std::cout << "[" << command->getJobId() << "]" << cmd_l << " : " << command->getProcessId() << " " << time_diff << " secs " << stopped_str << std::endl;
+    std::cout << "[" << command->getJobId() << "]" << cmd_l << " : " << pid << " " << time_diff << " secs " << stopped_str << std::endl;
 };
 
 //  returns the max id that is currently in the jobs list
@@ -1320,6 +1328,12 @@ void JobsList::removeJobById(int jobId)
     {
         if (jobs[i]->getJobId() == jobId)
         {
+            if (jobs[i]->getCommand()->isTimeout())
+            {
+                shared_ptr<TimeoutCommand> cmd = dynamic_pointer_cast<TimeoutCommand>(jobs[i]->getCommand());
+                SmallShell& smash = SmallShell::getInstance();
+                smash.removeTimeOutCommand(cmd);
+            }
             jobs.erase(jobs.begin() + i);
             break;
         }
@@ -1596,6 +1610,11 @@ void SmallShell::addTimeOutCommand(std::shared_ptr<TimeoutCommand> cmd)
     timeOutList->addToList(cmd);
 }
 
+void SmallShell::removeTimeOutCommand(std::shared_ptr<TimeoutCommand> cmd)
+{
+    timeOutList->removeCommand(cmd);
+}
+
 void SmallShell::handleAlarm()
 {
     timeOutList->handleSignal();
@@ -1632,6 +1651,7 @@ void TimeoutCommand::execute()
     if (!target_cmd->isExternal())
         throw std::runtime_error("got Built-in Command in Timeout!!");
 
+
     int pid = fork();
 
     if (pid == -1)
@@ -1651,11 +1671,15 @@ void TimeoutCommand::execute()
     //------------------------ father--------------------//
     else
     {
+
+
         // store the pid of the child in the list
         m_pid = pid;
+        process_id =pid;
+        target_cmd->setProcessId(pid);
         if (!(_isBackgroundCommand(target_cmd->getCmdL())))
         {
-            smash.setCurrentCommand(target_cmd);
+            //smash.setCurrentCommand(target_cmd);
             waitpid(pid, nullptr, WUNTRACED);
             smash.setCurrentCommand(nullptr);
         }
@@ -1665,8 +1689,10 @@ void TimeoutCommand::execute()
 void TimeOutList::removeNext()
 {
     time_out_list.pop_front();
-    if (time_out_list.empty())
+    if (time_out_list.empty()) {
+        next_cmd = nullptr;
         return;
+    }
     next_cmd = time_out_list.front();
     makeAlarm();
 }
@@ -1700,6 +1726,8 @@ int TimeoutCommand::getTimeoutTargetPid()
 }
 void TimeOutList::handleSignal()
 {
+    if (next_cmd == nullptr)
+        return;
     int target_pid = next_cmd->getTimeoutTargetPid();
     cout << "smash: got an alarm" << endl;
     // check if the command already stopped before killing it
@@ -1715,6 +1743,22 @@ void TimeOutList::handleSignal()
         std::cout << "smash: " + string(next_cmd->getCmdL()) + " timed out!" << std::endl;
     }
     removeNext();
+}
+
+void TimeOutList::removeCommand(std::shared_ptr<TimeoutCommand> cmd_to_del)
+{
+    if (cmd_to_del == next_cmd) {
+        removeNext();
+        return;
+    }
+    for (auto it = time_out_list.begin(); it != time_out_list.end(); it++)
+    {
+        if ((*it) == cmd_to_del)
+        {
+            time_out_list.erase(it);
+            return;
+        }
+}
 }
 
 void TimeOutList::addToList(std::shared_ptr<TimeoutCommand> new_cmd)
@@ -1735,4 +1779,4 @@ void TimeOutList::addToList(std::shared_ptr<TimeoutCommand> new_cmd)
         }
     }
     time_out_list.push_back(new_cmd);
-}
+};
