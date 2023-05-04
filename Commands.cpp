@@ -128,6 +128,12 @@ bool _isSimpleExternal(std::string str)
 // Checks if a given string is made of digits only
 bool isStringNumber(std::string str)
 {
+    if (str[0] == '-')
+        str.erase(0, 1);
+
+    if (int(str.size()) == 0)
+        return false;
+
     for (int i = 0; i < int(str.size()); i++)
     {
         if (!isdigit(str[i]))
@@ -151,7 +157,7 @@ SmallShell::~SmallShell()
 // Command
 
 Command::Command(const char *cmd_line) : job_id(-1), process_id(getpid()), cmd_l(new char[strlen(cmd_line) + 1]),
-                                          external(false),time_out(false), args_vec()
+                                         external(false), time_out(false), args_vec()
 {
 
     strcpy(cmd_l, cmd_line);
@@ -162,6 +168,16 @@ Command::~Command()
 {
     delete[] cmd_l;
 }
+
+BuiltInCommand::BuiltInCommand(const char *cmd_line) : Command(cmd_line)
+{
+    if (_isBackgroundCommand(args_vec.back().c_str()))
+    {
+        removeBackgroundSignString(args_vec.back());
+        if (args_vec.back() == "")
+            args_vec.pop_back();
+    }
+};
 
 RedirectionCommand::RedirectionCommand(const char *cmd_line, string sign) : Command(cmd_line),
                                                                             base_command(nullptr), dest(), out_pd()
@@ -229,7 +245,6 @@ void RedirectionCommand::execute()
         // restores the correct stdout for smash
         cleanup();
     }
-
 }
 
 void RedirectionNormalCommand::prepare()
@@ -249,19 +264,17 @@ void RedirectionCommand::prepareGeneral(bool write_with_append)
     // permissions
     int new_fd;
     if (write_with_append)
-        new_fd = open(dest.c_str(), O_RDWR  | O_APPEND | O_CREAT, S_IRWXU);
+        new_fd = open(dest.c_str(), O_RDWR | O_APPEND | O_CREAT, S_IRWXU);
     else
-        new_fd = open(dest.c_str(), O_RDWR  | O_TRUNC | O_CREAT, S_IRWXU);
+        new_fd = open(dest.c_str(), O_RDWR | O_TRUNC | O_CREAT, S_IRWXU);
     if (new_fd < 0)
     {
         SystemCallFailed e("open");
         throw e;
     }
 
-
     // replacing stdout with dest
-    int res = dup2(new_fd,1);
-
+    int res = dup2(new_fd, 1);
 
     if (res < 0)
     {
@@ -369,7 +382,8 @@ void PipeCommand::execute(int pid_num)
                 perror("smash error: setpgrp failed");
             write_command->execute();
         }
-        else {
+        else
+        {
             // wait for the "write-son" to finish writing
             close(fd[0]);
             close(fd[1]);
@@ -379,7 +393,8 @@ void PipeCommand::execute(int pid_num)
     else
     {
         prepareWrite(pid_num);
-        try {
+        try
+        {
             write_command->execute();
         }
         catch (SystemCallFailed &e)
@@ -388,7 +403,7 @@ void PipeCommand::execute(int pid_num)
         }
         catch (std::exception &e)
         {
-            std::cerr << e.what()<<std::endl;
+            std::cerr << e.what() << std::endl;
         }
 
         // restoring the FDT for smash
@@ -397,7 +412,6 @@ void PipeCommand::execute(int pid_num)
 
     // wait for the "read-son" to finish reading
     waitpid(pid1, nullptr, 0);
-
 }
 
 void PipeCommand::cleanUp()
@@ -513,7 +527,7 @@ void SmallShell::executeCommand(const char *cmd_line)
     string cmd_s = _trim(string(cmd_line));
     string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
 
-    if (firstWord.compare("chprompt") == 0)
+    if (firstWord.compare("chprompt") == 0 || firstWord.compare("chprompt&") == 0)
     {
         changeChprompt(cmd_line);
         return;
@@ -576,35 +590,6 @@ void SmallShell::executeCommand(const char *cmd_line)
     }
 }
 
-//    else if (isBuildInCommand(firstWord))
-//    {
-//        Command *cmd = CreateCommand(cmd_line);
-//        cmd->execute();
-//    }
-//    else
-//    {
-//        Command *cmd = CreateCommand(cmd_line);
-//        int pid = fork();
-//        if (pid == 0)
-//        {
-//            setpgrp();
-//            cmd->execute();
-//        }
-//        else
-//        {
-//            if (!(_isBackgroundCommand(cmd_line))) {
-//                current_command = cmd;
-//                waitpid(pid);
-//                current_command = nullptr;
-//            }
-//        }
-
-// TODO: Add your implementation here
-// for example:
-// Command* cmd = CreateCommand(cmd_line);
-// cmd->execute();
-// Please note that you must fork smash process for some commands (e.g., external commands....)
-
 void ShowPidCommand::execute()
 {
     int process_id = getpid();
@@ -636,14 +621,12 @@ void ChangeDirCommand::execute()
     //  Check amount of arguments
     if (int(args_vec.size()) > 2)
     {
-        DefaultError e(cmd_l);
+        TooManyArguments e("cd");
         throw e;
     }
+    // check if no arguement has given
     if (int(args_vec.size()) == 1)
-    {
-        UnspecifiedError e(cmd_l);
-        throw e;
-    }
+        return;
 
     //  Check if going to last working directory or a new one
     if (args_vec[1] == "-")
@@ -692,6 +675,10 @@ void ExternalCommand::execute()
     if (_isBackgroundCommand(cmd_l))
     {
         removeBackgroundSignString(args_vec.back());
+        if (args_vec.back() == "")
+        {
+            args_vec.pop_back();
+        }
     }
     // parse path depending on Command type (Simple or Complex)
     // inserting "-c" for Complex Command
@@ -703,10 +690,10 @@ void ExternalCommand::execute()
     }
     else
     {
-        for (int i=1; i< int(args_vec.size()); i++)
+        for (int i = 1; i < int(args_vec.size()); i++)
             args_vec[0] += " " + args_vec[i];
 
-        for (int i=1; i< int(args_vec.size()); i++)
+        for (int i = 1; i < int(args_vec.size()); i++)
             args_vec.pop_back();
 
         args_vec.insert(args_vec.begin(), "/bin/bash");
@@ -920,7 +907,7 @@ void ForegroundCommand::execute()
         }
         if (job_id_to_find <= 0)
         {
-            InvaildArgument e("fg");
+            JobIdDoesntExist e("fg", job_id_to_find);
             throw e;
         }
         else
@@ -938,12 +925,11 @@ void ForegroundCommand::execute()
 void QuitCommand::execute()
 {
     bool flag_kill = false;
-    std::vector<std::string> args = get_args_in_vec(this->cmd_l);
 
     //  check if 'kill' was given as an argument
-    for (int i = 1; i < int(args.size()); i++)
+    for (int i = 1; i < int(args_vec.size()); i++)
     {
-        if (args[i] == "kill")
+        if (args_vec[i] == "kill")
         {
             flag_kill = true;
             break;
@@ -955,7 +941,8 @@ void QuitCommand::execute()
     {
         jobs->killAllJobs();
     }
-    delete[] this->cmd_l;
+    // Note: maybe we delete it twice when D'tor is called on exit?
+    // delete[] this->cmd_l;
     exit(0);
 }
 
@@ -979,7 +966,8 @@ int getSignalNumber(std::string str)
     if (isStringNumber(str))
     {
         num = stoi(str);
-        return num;
+        if (num >= 0)
+            return num;
     }
     return -1;
 }
@@ -994,94 +982,94 @@ void KillCommand::execute()
     }
 
     //  get the number of the signal
-    int signal_num = getSignalNumber(args_vec[1]); // return -1 if the format is wrong
+    std::string signal_requested = args_vec[1];
+    std::string job_id_requested = args_vec[2];
+
+    int signal_num = getSignalNumber(signal_requested); // return -1 if the format is wrong
     int job_id;
-    if (isStringNumber(args_vec[2]))
+
+    if (isStringNumber(job_id_requested))
     {
-        job_id = stoi(args_vec[2]);
-    }
-    //  check if number is in range
-    // Note: We take the assumption that there are 0-31 signals only
-    if (signal_num > 0 && signal_num < 32 && job_id != -1)
-    {
-
-        //  get the job - if does not exist, nullptr will be returned
-        JobsList::JobEntry *job = jobs->getJobById(job_id);
-        if (job == nullptr)
-        {
-            JobIdDoesntExist e("kill", job_id);
-            throw e;
-        }
-        else
-        {
-            int pid = job->getCommand()->getProcessId();
-
-            string cmd_s = _trim(string(job->getCommand()->getCmdL()));
-            string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
-
-
-            //  Note : to check if there are more signal numbers that fit
-            //  kill signals
-            if (signal_num == 9 || signal_num == 15 || signal_num == 6 || signal_num == 2)
-            {
-                if (kill(pid, signal_num) == -1)
-                {
-                    SystemCallFailed e("kill");
-                    throw e;
-                }
-                else
-                {
-                    //  remove the job from the jobs list for good
-                    jobs->removeJobById(job->getJobId());
-                }
-            }
-
-            //  stop signals
-            else if (signal_num == 19)
-            {
-                if (kill(pid, signal_num) == -1)
-                {
-                    SystemCallFailed e("kill");
-                    throw e;
-                }
-                else
-                {
-                    //  update the jobs status
-                    job->setStopped(true);
-                }
-            }
-
-            // continute job signals
-            else if (signal_num == 18)
-            {
-                if (kill(pid, signal_num) == -1)
-                {
-                    SystemCallFailed e("kill");
-                    throw e;
-                }
-                else
-                {
-                    //  update the jobs status
-                    job->setStopped(false);
-                }
-            }
-
-            // ordinary signals
-            else
-            {
-                if (kill(pid, signal_num) == -1)
-                {
-                    SystemCallFailed e("kill");
-                    throw e;
-                }
-            }
-            std::cout << "signal number " << signal_num << " was sent to pid " << pid << std::endl;
-        }
+        job_id = stoi(job_id_requested);
     }
     else
     {
         InvaildArgument e("kill");
         throw e;
+    }
+    if (signal_num == -1)
+    {
+        InvaildArgument e("kill");
+        throw e;
+    }
+
+    //  get the job - if does not exist, nullptr will be returned
+    JobsList::JobEntry *job = jobs->getJobById(job_id);
+    if (job == nullptr)
+    {
+        JobIdDoesntExist e("kill", job_id);
+        throw e;
+    }
+    else
+    {
+        int pid = job->getCommand()->getProcessId();
+
+        //  Note : to check if there are more signal numbers that fit
+        //  kill signals
+        if (signal_num == 9 || signal_num == 15 || signal_num == 6 || signal_num == 2)
+        {
+            if (kill(pid, signal_num) == -1)
+            {
+                SystemCallFailed e("kill");
+                throw e;
+            }
+            else
+            {
+                //  remove the job from the jobs list for good
+                jobs->removeJobById(job->getJobId());
+            }
+        }
+
+        //  stop signals
+        else if (signal_num == 19)
+        {
+            if (kill(pid, signal_num) == -1)
+            {
+                SystemCallFailed e("kill");
+                throw e;
+            }
+            else
+            {
+                //  update the jobs status
+                job->setStopped(true);
+            }
+        }
+
+        // continute job signals
+        else if (signal_num == 18)
+        {
+            if (kill(pid, signal_num) == -1)
+            {
+                SystemCallFailed e("kill");
+                throw e;
+            }
+            else
+            {
+                //  update the jobs status
+                job->setStopped(false);
+            }
+        }
+
+        // ordinary signals
+        else
+        {
+            if (kill(pid, signal_num) == -1)
+            {
+                SystemCallFailed e("kill");
+                throw e;
+            }
+        }
+        std::cout << "signal number " << signal_num << " was sent to pid " << pid << std::endl;
     }
 }
 
@@ -1115,6 +1103,16 @@ void SetcoreCommand::execute()
         else
         {
 
+            //  get amount of cores in the cpu
+            int cores_in_cpu = std::thread::hardware_concurrency();
+
+            //  check if the core that was given is in range
+            if (cores_in_cpu <= core_number || core_number < 0)
+            {
+                InvaildCoreNumber e;
+                throw e;
+            }
+
             //  checking if the command is 'sleep'
             string cmd_s = _trim(string(job->getCommand()->getCmdL()));
             string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
@@ -1125,15 +1123,6 @@ void SetcoreCommand::execute()
             }
 
             int pid = job->getCommand()->getProcessId();
-
-            //  get amount of cores in the cpu
-            int cores_in_cpu = std::thread::hardware_concurrency();
-            //  check if the core that was given is in range
-            if (cores_in_cpu <= core_number || core_number < 0)
-            {
-                InvaildCoreNumber e;
-                throw e;
-            }
 
             //  set the job's core
             cpu_set_t set;
@@ -1331,7 +1320,7 @@ void JobsList::removeJobById(int jobId)
             if (jobs[i]->getCommand()->isTimeout())
             {
                 shared_ptr<TimeoutCommand> cmd = dynamic_pointer_cast<TimeoutCommand>(jobs[i]->getCommand());
-                SmallShell& smash = SmallShell::getInstance();
+                SmallShell &smash = SmallShell::getInstance();
                 smash.removeTimeOutCommand(cmd);
             }
             jobs.erase(jobs.begin() + i);
@@ -1406,10 +1395,7 @@ void JobsList::killAllJobs()
 
         //  send kill signal
         if (kill(pid, SIGKILL) == -1)
-        {
-            SystemCallFailed e("kill");
-            throw e;
-        }
+            perror("smash error: kill failed");
 
         //  remove from jobs list
         this->removeJobById(job_id);
@@ -1485,6 +1471,10 @@ shared_ptr<Command> SmallShell::CreateCommand(const char *cmd_line)
 
     string cmd_s = _trim(string(cmd_line));
     string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
+    if (_isBackgroundCommand(firstWord.c_str()))
+    {
+        removeBackgroundSignString(firstWord);
+    }
 
     if (isAppendRedirect(string(cmd_line)))
     {
@@ -1560,7 +1550,13 @@ shared_ptr<Command> SmallShell::CreateCommand(const char *cmd_line)
 
 void SmallShell::changeChprompt(const char *cmd_line)
 {
-    vector<string> args = get_args_in_vec(cmd_line);
+    std::string cmd_line_string(cmd_line);
+    if (_isBackgroundCommand(cmd_line))
+    {
+        removeBackgroundSignString(cmd_line_string);
+    }
+
+    vector<string> args = get_args_in_vec(cmd_line_string.c_str());
     string new_prompt = int(args.size()) == 1 ? "smash> " : (args[1] + "> ");
     prompt = new_prompt;
 }
@@ -1623,13 +1619,18 @@ void SmallShell::handleAlarm()
 TimeoutCommand::TimeoutCommand(const char *cmd_line) : BuiltInCommand(cmd_line)
 {
 
-    if (!isStringNumber(args_vec[1]))
+    // check if time given is a positive number
+    if (!isStringNumber(args_vec[1]) || stoi(args_vec[1]) < 0)
     {
         InvaildArgument e("timeout");
         throw e;
     }
 
     SmallShell &smash = SmallShell::getInstance();
+
+    // in BuiltInCommand C'tor we delete the '&' from the args vec so we need to return it here
+    if (_isBackgroundCommand(cmd_line))
+        args_vec = get_args_in_vec(cmd_line);
 
     string target_cmd_str = "";
     for (int i = 2; i < int(args_vec.size()); i++)
@@ -1651,7 +1652,6 @@ void TimeoutCommand::execute()
     if (!target_cmd->isExternal())
         throw std::runtime_error("got Built-in Command in Timeout!!");
 
-
     int pid = fork();
 
     if (pid == -1)
@@ -1672,14 +1672,13 @@ void TimeoutCommand::execute()
     else
     {
 
-
         // store the pid of the child in the list
         m_pid = pid;
-        process_id =pid;
+        process_id = pid;
         target_cmd->setProcessId(pid);
         if (!(_isBackgroundCommand(target_cmd->getCmdL())))
         {
-            //smash.setCurrentCommand(target_cmd);
+            // smash.setCurrentCommand(target_cmd);
             waitpid(pid, nullptr, WUNTRACED);
             smash.setCurrentCommand(nullptr);
         }
@@ -1689,7 +1688,8 @@ void TimeoutCommand::execute()
 void TimeOutList::removeNext()
 {
     time_out_list.pop_front();
-    if (time_out_list.empty()) {
+    if (time_out_list.empty())
+    {
         next_cmd = nullptr;
         return;
     }
@@ -1747,7 +1747,8 @@ void TimeOutList::handleSignal()
 
 void TimeOutList::removeCommand(std::shared_ptr<TimeoutCommand> cmd_to_del)
 {
-    if (cmd_to_del == next_cmd) {
+    if (cmd_to_del == next_cmd)
+    {
         removeNext();
         return;
     }
@@ -1758,7 +1759,7 @@ void TimeOutList::removeCommand(std::shared_ptr<TimeoutCommand> cmd_to_del)
             time_out_list.erase(it);
             return;
         }
-}
+    }
 }
 
 void TimeOutList::addToList(std::shared_ptr<TimeoutCommand> new_cmd)

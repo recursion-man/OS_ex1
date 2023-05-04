@@ -49,7 +49,7 @@ public:
 class BuiltInCommand : public Command
 {
 public:
-  BuiltInCommand(const char *cmd_line) : Command(cmd_line){};
+  BuiltInCommand(const char *cmd_line);
   virtual ~BuiltInCommand() = default;
 };
 
@@ -368,8 +368,7 @@ public:
   void addTimeOutCommand(std::shared_ptr<TimeoutCommand>);
   void removeTimeOutCommand(std::shared_ptr<TimeoutCommand>);
 
-
-    void handleAlarm();
+  void handleAlarm();
 
   void removeJob(int job_id);
 };
