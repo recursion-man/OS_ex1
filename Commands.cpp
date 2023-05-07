@@ -109,6 +109,18 @@ void removeBackgroundSignString(string &str)
         str.erase(str.size() - 1, 1);
 }
 
+
+void try_catch(Command(* cmd)) {
+    try {
+        cmd->execute();
+    }
+    catch (SystemCallFailed &e) {
+        perror(e.what());
+    }
+    catch (std::exception &e) {
+        std::cerr << e.what() << std::endl;
+    }
+}
 //<---------------------------stuff functions - end --------------------------->
 
 std::vector<std::string> get_args_in_vec(const char *cmd_line)
@@ -239,9 +251,7 @@ void RedirectionCommand::execute()
     {
         // prepare changes the stdout
         prepare();
-
-        base_command->execute();
-
+        try_catch(base_command.get());
         // restores the correct stdout for smash
         cleanup();
     }
@@ -347,6 +357,32 @@ void PipeCommand::prepareRead()
     close(fd[1]);
 }
 
+void supress_out(int pid_num)
+{
+    int dev_null = open("/dev/null", O_WRONLY);
+    if (dev_null < 0)
+    {
+        SystemCallFailed e("open");
+        throw e;
+    }
+
+    // replacing stdout with dev_null
+    int res = dup2(dev_null, pid_num);
+
+    if (res < 0)
+    {
+        SystemCallFailed e("dup2");
+        throw e;
+    }
+
+    res = close(dev_null);
+    if (res < 0)
+    {
+        SystemCallFailed e("close");
+        throw e;
+    }
+}
+
 void PipeNormalCommand::execute()
 {
     PipeCommand::execute(1);
@@ -357,8 +393,41 @@ void PipeSterrCommand::execute()
     PipeCommand::execute(2);
 }
 
+
+
 void PipeCommand::execute(int pid_num)
 {
+    if (!read_command->isExternal())
+    {
+        if (write_command->isExternal())
+        {
+            int pid3 = fork();
+            if (!pid3) // son
+            {
+                // redirect (stdout or stderr) to devNull
+                supress_out(pid_num);
+                int res = setpgrp();
+                if (res < 0)
+                    perror("smash error: setpgrp failed");
+                write_command->execute();
+            }
+            else
+            {
+                try_catch(read_command.get());
+                waitpid(pid3, nullptr, 0);
+            }
+        }
+        else
+        {
+            try_catch(read_command.get());
+
+            // redirect (stdout or stderr) to devNull
+            supress_out(pid_num);
+            try_catch(write_command.get());
+        }
+        cleanUp();
+    }
+    else{
     // fork the second process - for the read end of the pipe
     int pid1 = fork();
     if (!pid1)
@@ -393,18 +462,7 @@ void PipeCommand::execute(int pid_num)
     else
     {
         prepareWrite(pid_num);
-        try
-        {
-            write_command->execute();
-        }
-        catch (SystemCallFailed &e)
-        {
-            perror(e.what());
-        }
-        catch (std::exception &e)
-        {
-            std::cerr << e.what() << std::endl;
-        }
+        try_catch(write_command.get());
 
         // restoring the FDT for smash
         cleanUp();
@@ -412,6 +470,7 @@ void PipeCommand::execute(int pid_num)
 
     // wait for the "read-son" to finish reading
     waitpid(pid1, nullptr, 0);
+}
 }
 
 void PipeCommand::cleanUp()
