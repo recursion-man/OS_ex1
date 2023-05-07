@@ -2,7 +2,21 @@
 #include <signal.h>
 #include "signals.h"
 #include "Commands.h"
-
+#include <unistd.h>
+#include <string.h>
+#include <iostream>
+#include <vector>
+#include <sstream>
+#include <sched.h>
+#include <sys/wait.h>
+#include <sys/stat.h>
+#include <iomanip>
+#include "Commands.h"
+#include <signal.h>
+#include <sys/types.h>
+#include <memory>
+#include <thread>
+#include <errno.h>
 using namespace std;
 
 void ctrlCHandler(int sig_num)
@@ -29,6 +43,10 @@ void ctrlCHandler(int sig_num)
       }
       else
       {
+//          if (current_command->isTimeout())
+//          {
+//              pid = getpid();
+//          }
         //  if the job was in the job list once, remove it
         if (current_command->getJobId() != -1)
         {
@@ -70,6 +88,11 @@ void ctrlZHandler(int sig_num)
       }
       else
       {
+//          if (current_command->isTimeout())
+//          {
+//              pid = getpid();
+//          }
+
         //  add to job list
         smash.addJob(current_command, true);
 

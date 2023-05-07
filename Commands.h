@@ -7,6 +7,10 @@
 #include <list>
 #include <memory>
 #include <fcntl.h>
+#include <sys/wait.h>
+#include <sys/stat.h>
+#include <iomanip>
+#include <sys/types.h>
 
 #define COMMAND_ARGS_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)

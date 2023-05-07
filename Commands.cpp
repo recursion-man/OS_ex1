@@ -1313,10 +1313,10 @@ void JobsList::JobEntry::printInfo() const
 
     // get pid
     int pid = command->getProcessId();
-    if (command->isTimeout())
-    {
-        pid = getpid();
-    }
+//    if (command->isTimeout())
+//    {
+//        pid = getpid();
+//    }
 
     //  print info
     std::cout << "[" << command->getJobId() << "] " << cmd_l << " : " << pid << " " << time_diff << " secs" << stopped_str << std::endl;
@@ -1684,7 +1684,7 @@ TimeoutCommand::TimeoutCommand(const char *cmd_line) : BuiltInCommand(cmd_line)
 {
 
     // check if time given is a positive number
-    if (!isStringNumber(args_vec[1]) || stoi(args_vec[1]) < 0)
+    if (args_vec.size() < 3 || !isStringNumber(args_vec[1]) || stoi(args_vec[1]) < 0)
     {
         InvaildArgument e("timeout");
         throw e;
