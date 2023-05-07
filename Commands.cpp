@@ -801,8 +801,17 @@ void JobsCommand::execute()
 
 void BackgroundCommand::execute()
 {
-    if (int(args_vec.size()) != 2 && int(args_vec.size()) != 1)
+    if (int(args_vec.size()) >= 3)
     {
+        if (isStringNumber(args_vec[1]))
+        {
+            int job_id_to_find = stoi(args_vec[1]);
+            if (jobs->getJobById(job_id_to_find) == nullptr)
+            {
+                JobIdDoesntExist e("bg", job_id_to_find);
+                throw e;
+            }
+        }
         InvaildArgument e("bg");
         throw e;
     }
@@ -951,7 +960,6 @@ void ForegroundCommand::execute()
     {
         bringCommandToForegound(0, jobs);
     }
-
     //    specific job required
     else if (int(args_vec.size()) == 2)
     {
@@ -979,6 +987,16 @@ void ForegroundCommand::execute()
     }
     else
     {
+        if (isStringNumber(args_vec[1]))
+        {
+            int job_id_to_find = stoi(args_vec[1]);
+            if (jobs->getJobById(job_id_to_find) == nullptr)
+            {
+                JobIdDoesntExist e("fg", job_id_to_find);
+                throw e;
+            }
+        }
+
         InvaildArgument e("fg");
         throw e;
     }
@@ -1039,6 +1057,18 @@ void KillCommand::execute()
     //  check amount of arguments
     if (int(args_vec.size()) != 3)
     {
+        if (int(args_vec.size()) > 3)
+        {
+            if (isStringNumber(args_vec[2]))
+            {
+                int job_id_to_find = stoi(args_vec[2]);
+                if (jobs->getJobById(job_id_to_find) == nullptr)
+                {
+                    JobIdDoesntExist e("kill", job_id_to_find);
+                    throw e;
+                }
+            }
+        }
         InvaildArgument e("kill");
         throw e;
     }
@@ -1140,6 +1170,32 @@ void SetcoreCommand::execute()
     //  checks amount of arguments
     if (int(args_vec.size()) != 3)
     {
+        if (int(args_vec.size()) == 2)
+        {
+        }
+        if (int(args_vec.size()) > 3)
+        {
+            if (isStringNumber(args_vec[2]))
+            {
+                int job_id_to_find = stoi(args_vec[2]);
+                if (jobs->getJobById(job_id_to_find) == nullptr)
+                {
+                    JobIdDoesntExist e("setcore", job_id_to_find);
+                    throw e;
+                }
+            }
+            if (isStringNumber(args_vec[1]))
+            {
+                int core_number = stoi(args_vec[1]);
+                int cores_in_cpu = std::thread::hardware_concurrency();
+                if (core_number < 0 || core_number >= cores_in_cpu)
+                {
+                    InvaildCoreNumber e;
+                    throw e;
+                }
+            }
+        }
+
         InvaildArgument e("setcore");
         throw e;
     }
@@ -1313,10 +1369,10 @@ void JobsList::JobEntry::printInfo() const
 
     // get pid
     int pid = command->getProcessId();
-//    if (command->isTimeout())
-//    {
-//        pid = getpid();
-//    }
+    //    if (command->isTimeout())
+    //    {
+    //        pid = getpid();
+    //    }
 
     //  print info
     std::cout << "[" << command->getJobId() << "] " << cmd_l << " : " << pid << " " << time_diff << " secs" << stopped_str << std::endl;
