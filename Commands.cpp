@@ -776,7 +776,7 @@ void BackgroundCommand::execute()
                 job->setStopped(false);
 
                 //  printig the cmd_line of the command
-                std::cout << job->getCommand()->getCmdL() << std::endl;
+                std::cout << job->getCommand()->getCmdL() << " : " << pid <<std::endl;
 
                 // continue cammand without wating for it
                 if (kill(pid, SIGCONT) == -1)
@@ -846,10 +846,10 @@ void bringCommandToForegound(int job_id, JobsList *jobs)
     //
     if (job_to_cont != nullptr)
     {
-        //  print the cmd_line of the command
-        std::cout << job_to_cont->getCommand()->getCmdL() << std::endl;
-
         int pid = job_to_cont->getCommand()->getProcessId();
+
+        //  print the cmd_line of the command
+        std::cout << job_to_cont->getCommand()->getCmdL() << " : " << pid << std::endl;
 
         //  send a continue signal to the process
         if (kill(pid, SIGCONT) == -1)
@@ -1246,7 +1246,7 @@ void JobsList::JobEntry::printInfo() const
     int time_diff = difftime(current_time, init_time);
 
     // get status of job
-    string stopped_str = is_stopped ? "(stopped)" : "";
+    string stopped_str = is_stopped ? " (stopped)" : "";
     string cmd_l(command->getCmdL());
 
     // get pid
@@ -1257,7 +1257,7 @@ void JobsList::JobEntry::printInfo() const
     }
 
     //  print info
-    std::cout << "[" << command->getJobId() << "]" << cmd_l << " : " << pid << " " << time_diff << " secs " << stopped_str << std::endl;
+    std::cout << "[" << command->getJobId() << "] " << cmd_l << " : " << pid << " " << time_diff << " secs" << stopped_str << std::endl;
 };
 
 //  returns the max id that is currently in the jobs list
