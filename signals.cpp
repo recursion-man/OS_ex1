@@ -86,6 +86,7 @@ void ctrlZHandler(int sig_num)
 ///-------------------------bonus start---------------------------------------
 void alarmHandler(int sig_num)
 {
+  cout << "smash: got an alarm" << endl;
   SmallShell &smash = SmallShell::getInstance();
   smash.handleAlarm();
 }
