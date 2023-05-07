@@ -775,8 +775,8 @@ void BackgroundCommand::execute()
                 //  updating the command's status
                 job->setStopped(false);
 
-                //  printig the cmd_line of the command
-                std::cout << job->getCommand()->getCmdL() << " : " << pid <<std::endl;
+                //  printing the cmd_line of the command
+                std::cout << job->getCommand()->getCmdL() << " : " << pid << std::endl;
 
                 // continue cammand without wating for it
                 if (kill(pid, SIGCONT) == -1)
@@ -809,7 +809,7 @@ void BackgroundCommand::execute()
             job->setStopped(false);
 
             //  printig the cmd_line of the command
-            std::cout << job->getCommand()->getCmdL() << std::endl;
+            std::cout << job->getCommand()->getCmdL() << " : " << pid << std::endl;
 
             // continue cammand without wating for it
             if (kill(pid, SIGCONT) == -1)
@@ -1649,7 +1649,8 @@ void TimeoutCommand::execute()
     SmallShell &smash = SmallShell::getInstance();
 
     // we assume all the commands are External, because a built-in command will end very quick...
-    if (!target_cmd->isExternal()) {
+    if (!target_cmd->isExternal())
+    {
         target_cmd->execute();
         return;
     }
