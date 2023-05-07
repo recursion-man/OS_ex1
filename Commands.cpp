@@ -109,15 +109,18 @@ void removeBackgroundSignString(string &str)
         str.erase(str.size() - 1, 1);
 }
 
-
-void try_catch(Command(* cmd)) {
-    try {
+void try_catch(Command(*cmd))
+{
+    try
+    {
         cmd->execute();
     }
-    catch (SystemCallFailed &e) {
+    catch (SystemCallFailed &e)
+    {
         perror(e.what());
     }
-    catch (std::exception &e) {
+    catch (std::exception &e)
+    {
         std::cerr << e.what() << std::endl;
     }
 }
@@ -393,8 +396,6 @@ void PipeSterrCommand::execute()
     PipeCommand::execute(2);
 }
 
-
-
 void PipeCommand::execute(int pid_num)
 {
     if (!read_command->isExternal())
@@ -427,50 +428,51 @@ void PipeCommand::execute(int pid_num)
         }
         cleanUp();
     }
-    else{
-    // fork the second process - for the read end of the pipe
-    int pid1 = fork();
-    if (!pid1)
+    else
     {
-        int res = setpgrp();
-        if (res < 0)
-            perror("smash error: setpgrp failed");
-        prepareRead();
-        read_command->execute();
-    }
-
-    // write end of the pipe
-    if (write_command->isExternal())
-    {
-        int pid2 = fork();
-        if (!pid2)
+        // fork the second process - for the read end of the pipe
+        int pid1 = fork();
+        if (!pid1)
         {
-            prepareWrite(pid_num);
             int res = setpgrp();
             if (res < 0)
                 perror("smash error: setpgrp failed");
-            write_command->execute();
+            prepareRead();
+            read_command->execute();
+        }
+
+        // write end of the pipe
+        if (write_command->isExternal())
+        {
+            int pid2 = fork();
+            if (!pid2)
+            {
+                prepareWrite(pid_num);
+                int res = setpgrp();
+                if (res < 0)
+                    perror("smash error: setpgrp failed");
+                write_command->execute();
+            }
+            else
+            {
+                // wait for the "write-son" to finish writing
+                close(fd[0]);
+                close(fd[1]);
+                waitpid(pid2, nullptr, 0);
+            }
         }
         else
         {
-            // wait for the "write-son" to finish writing
-            close(fd[0]);
-            close(fd[1]);
-            waitpid(pid2, nullptr, 0);
+            prepareWrite(pid_num);
+            try_catch(write_command.get());
+
+            // restoring the FDT for smash
+            cleanUp();
         }
-    }
-    else
-    {
-        prepareWrite(pid_num);
-        try_catch(write_command.get());
 
-        // restoring the FDT for smash
-        cleanUp();
+        // wait for the "read-son" to finish reading
+        waitpid(pid1, nullptr, 0);
     }
-
-    // wait for the "read-son" to finish reading
-    waitpid(pid1, nullptr, 0);
-}
 }
 
 void PipeCommand::cleanUp()
@@ -894,11 +896,12 @@ input:
 */
 void bringCommandToForegound(int job_id, JobsList *jobs)
 {
-    if (jobs->isEmpty())
+    if (job_id == 0 && jobs->isEmpty())
     {
         JobsListEmpty e;
         throw e;
     }
+
     //  get the job required - if the job_id doesn't exist, nullptr will be returned
     JobsList::JobEntry *job_to_cont = job_id == 0 ? jobs->getLastJob(nullptr) : jobs->getJobById(job_id);
 
@@ -1390,7 +1393,7 @@ void JobsList::removeJobById(int jobId)
 
 JobsList::JobEntry *JobsList::getJobById(int jobId)
 {
-
+    this->removeFinishedJobs();
     for (int i = 0; i < int(jobs.size()); i++)
     {
         if (jobs[i]->getJobId() == jobId)
@@ -1403,6 +1406,7 @@ JobsList::JobEntry *JobsList::getJobById(int jobId)
 
 JobsList::JobEntry *JobsList::getLastJob(int *lastJobId)
 {
+    this->removeFinishedJobs();
     if (int(jobs.size()) == 0)
         return nullptr;
     return jobs.back().get();
@@ -1410,6 +1414,7 @@ JobsList::JobEntry *JobsList::getLastJob(int *lastJobId)
 
 JobsList::JobEntry *JobsList::getLastStoppedJob(int *jobId)
 {
+    this->removeFinishedJobs();
     int i = jobs.size() - 1;
 
     //  goes from back to start in order to get the biggest one
