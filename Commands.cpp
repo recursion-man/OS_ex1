@@ -1649,8 +1649,10 @@ void TimeoutCommand::execute()
     SmallShell &smash = SmallShell::getInstance();
 
     // we assume all the commands are External, because a built-in command will end very quick...
-    if (!target_cmd->isExternal())
-        throw std::runtime_error("got Built-in Command in Timeout!!");
+    if (!target_cmd->isExternal()) {
+        target_cmd->execute();
+        return;
+    }
 
     int pid = fork();
 
@@ -1729,7 +1731,6 @@ void TimeOutList::handleSignal()
     if (next_cmd == nullptr)
         return;
     int target_pid = next_cmd->getTimeoutTargetPid();
-    cout << "smash: got an alarm" << endl;
     // check if the command already stopped before killing it
     int is_terminated = waitpid(target_pid, nullptr, WNOHANG);
 
