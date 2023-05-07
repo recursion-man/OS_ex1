@@ -659,7 +659,6 @@ void ShowPidCommand::execute()
 
 void GetCurrDirCommand::execute()
 {
-    // Note: to check max path length
     char cwd[256];
 
     // get the current working directory
@@ -833,7 +832,6 @@ void BackgroundCommand::execute()
         }
 
         //  getting the job from the list - if doesn't exist, a nullptr will return
-        // Note: should we make sure jobs pointer was set currectly(isn't nullptr)?
         JobsList::JobEntry *job = this->jobs->getJobById(job_id_to_find);
         if (job != nullptr)
         {
@@ -1021,8 +1019,6 @@ void QuitCommand::execute()
     {
         jobs->killAllJobs();
     }
-    // Note: maybe we delete it twice when D'tor is called on exit?
-    // delete[] this->cmd_l;
     exit(0);
 }
 
@@ -1106,7 +1102,6 @@ void KillCommand::execute()
     {
         int pid = job->getCommand()->getProcessId();
 
-        //  Note : to check if there are more signal numbers that fit
         //  kill signals
         if (signal_num == 9 || signal_num == 15 || signal_num == 6 || signal_num == 2)
         {
@@ -1235,10 +1230,7 @@ void SetcoreCommand::execute()
             string cmd_s = _trim(string(job->getCommand()->getCmdL()));
             string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
             if (firstWord.compare("sleep") == 0)
-            {
-                // Note : need to check if to do nothing or something else
                 return;
-            }
 
             int pid = job->getCommand()->getProcessId();
 
@@ -1308,7 +1300,6 @@ void GetFileTypeCommand::execute()
         file_type = "socket";
         break;
     default:
-        //  Note: to check what to do if it is not one of those options
         file_type = "unknown";
         break;
     }
@@ -1369,10 +1360,6 @@ void JobsList::JobEntry::printInfo() const
 
     // get pid
     int pid = command->getProcessId();
-    //    if (command->isTimeout())
-    //    {
-    //        pid = getpid();
-    //    }
 
     //  print info
     std::cout << "[" << command->getJobId() << "] " << cmd_l << " : " << pid << " " << time_diff << " secs" << stopped_str << std::endl;
@@ -1542,15 +1529,6 @@ void JobsList::removeFinishedJobs()
         {
             jobs_to_delete.push_back(jobs[i]->getJobId());
         }
-        //  updates the stopped field in each job while we're here
-        // if (waitpid(jobs[i]->getCommand()->getProcessId(), nullptr, WUNTRACED))
-        // {
-        //     jobs[i]->setStopped(true);
-        // }
-        // else
-        // {
-        //     jobs[i]->setStopped(false);
-        // }
     }
 
     //  remove the finished jobs
@@ -1697,27 +1675,6 @@ void SmallShell::removeJob(int job_id)
 };
 
 //<--------------------------- Smash functions - end--------------------------->
-
-//<--------------------------- Aux functions--------------------------->
-
-//  Note : is irrelevent?
-//
-bool isBuildInCommand(string firstWord)
-{
-    if (firstWord.compare("pwd") == 0 ||
-        firstWord.compare("showpid") == 0 ||
-        firstWord.compare("cd") == 0 ||
-        firstWord.compare("jobs") == 0 ||
-        firstWord.compare("bg") == 0 ||
-        firstWord.compare("fg") == 0 ||
-        firstWord.compare("quit") == 0) // להוסיף עוד
-    {
-        return true;
-    }
-    return false;
-}
-
-//<--------------------------- Aux functions - end--------------------------->
 
 //// bonus
 
